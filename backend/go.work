@@ -1,0 +1,10 @@
+go 1.24.4
+
+use (
+	./menu-service
+	./reservation-service
+	./inventory-service
+	./kitchen-service
+	./order-service
+	./shared
+)
