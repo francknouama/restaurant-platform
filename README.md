@@ -1,154 +1,213 @@
-# Restaurant Management Platform
+# Full-Stack Application
 
-A modern restaurant management platform built with Clean Architecture principles, featuring Go 1.24.4 backend with PostgreSQL and Redis.
+A modern full-stack application with a comprehensive React frontend and scalable backend architecture.
 
-## Features
+## 🏗️ Project Structure
 
-- **Menu Management**: Versioned menus with categories and availability tracking
-- **Order Processing**: Multi-type orders (dine-in, takeout, delivery) with automated workflow
-- **Kitchen Operations**: Order preparation with priority system and station assignment
-- **Reservation System**: Table booking with party size management
-- **Inventory Tracking**: Basic inventory management structure
+```
+.
+├── frontend/              # React TypeScript frontend application
+├── backend/              # Backend API (to be implemented)
+├── docs/                 # Project documentation
+├── docker-compose.yml    # Docker services configuration
+└── README.md            # This file
+```
 
-## Architecture
+## 🚀 Frontend Application
 
-Built using **Clean Architecture/Hexagonal Architecture** with clear separation of concerns:
+The frontend is a modern React application built with:
 
-- **Domain Layer**: Business entities and logic
-- **Application Layer**: Services and use cases
-- **Infrastructure Layer**: Database, cache, and external integrations
-- **Interface Layer**: HTTP handlers and routing
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **Tailwind CSS** for styling
+- **React Query** for server state management
+- **Zustand** for client state management
+- **React Router** for routing
+- **Comprehensive testing** with Vitest
 
-## Tech Stack
+### Quick Start - Frontend
 
-### Backend
-- **Go 1.24.4** with enhanced generics and modern error handling
-- **PostgreSQL** with JSONB for flexible data storage
-- **Redis** for caching and session management
-- **Gin** web framework with middleware support
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-### Frontend
-- **TailwindCSS** for styling (implementation minimal)
+The frontend will be available at `http://localhost:3000`
 
-## Quick Start
+## 📚 Documentation
+
+### Frontend Documentation
+See [frontend/README.md](./frontend/README.md) for detailed frontend documentation including:
+- Setup instructions
+- Architecture overview
+- API integration
+- Testing guide
+- Deployment instructions
+
+### Backend Documentation
+Backend implementation and documentation will be added based on the existing backend codebase analysis.
+
+## 🔧 Development Setup
 
 ### Prerequisites
-- Go 1.24.4+
-- PostgreSQL 12+
-- Redis 6+
+- Node.js 18+
+- npm or yarn
+- Git
 
-### Environment Setup
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd full-stack-app
+   ```
+
+2. **Install frontend dependencies**
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cd frontend
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Start development servers**
+   ```bash
+   # Frontend
+   cd frontend && npm run dev
+   
+   # Backend (when implemented)
+   cd backend && npm run dev
+   ```
+
+## 🏛️ Architecture Overview
+
+### Frontend Architecture
+- **Component-based architecture** with reusable UI components
+- **Custom hooks** for business logic
+- **Centralized state management** with Zustand
+- **API layer** with React Query for caching and synchronization
+- **Type-safe** development with TypeScript
+- **Responsive design** with mobile-first approach
+
+### Planned Backend Architecture
+- RESTful API design
+- Authentication and authorization
+- Database integration
+- Error handling and logging
+- API documentation
+
+## 🧪 Testing
+
+### Frontend Testing
 ```bash
-# Database
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USERNAME=postgres
-export DB_PASSWORD=your_password
-export DB_NAME=restaurant_platform
-
-# Redis
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
-
-# Server
-export SERVER_PORT=8080
+cd frontend
+npm run test                 # Run all tests
+npm run test:coverage        # Run with coverage
+npm run test:ui             # Run with UI
 ```
 
-### Installation & Running
+### Test Coverage
+- Unit tests for utilities and hooks
+- Component tests for UI components
+- Integration tests for API interactions
+- E2E tests for critical user flows
 
-1. **Clone and setup**:
+## 📦 Deployment
+
+### Frontend Deployment
+The frontend can be deployed to various platforms:
+
+- **Netlify** - Automatic deployment from Git
+- **Vercel** - Zero-config deployment
+- **AWS S3 + CloudFront** - Static hosting
+- **Docker** - Containerized deployment
+
+### Production Build
 ```bash
-git clone <repository-url>
-cd restaurant-platform/backend
-go mod download
+cd frontend
+npm run build
 ```
 
-2. **Database setup**:
-```bash
-# Create database
-createdb restaurant_platform
+## 🤝 Contributing
 
-# Run migrations
-for file in migrations/*.sql; do
-    psql -U postgres -d restaurant_platform -f "$file"
-done
-```
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-3. **Start the server**:
-```bash
-go run cmd/server/main.go
-```
+### Development Guidelines
+- Follow TypeScript best practices
+- Write tests for new features
+- Use semantic commit messages
+- Follow the existing code style
+- Update documentation as needed
 
-4. **Build for production**:
-```bash
-go build -o bin/server cmd/server/main.go
-```
+## 📋 Roadmap
 
-## API Endpoints
+### Phase 1: Frontend Foundation ✅
+- [x] React application setup
+- [x] TypeScript configuration
+- [x] Tailwind CSS styling
+- [x] Component library
+- [x] Authentication system
+- [x] Testing setup
 
-Base URL: `http://localhost:8080/api/v1/`
+### Phase 2: Backend Integration (In Progress)
+- [ ] Analyze existing backend codebase
+- [ ] API integration
+- [ ] Database connectivity
+- [ ] Authentication flow
+- [ ] Error handling
 
-### Menu Management
-- `GET /menus` - List all menus
-- `POST /menus` - Create new menu
-- `GET /menus/{id}` - Get menu details
-- `PUT /menus/{id}` - Update menu
-- `POST /menus/{id}/activate` - Activate menu
+### Phase 3: Advanced Features (Planned)
+- [ ] Real-time features
+- [ ] File upload/management
+- [ ] Advanced search and filtering
+- [ ] Analytics and reporting
+- [ ] Performance optimization
 
-### Order Processing
-- `GET /orders` - List orders
-- `POST /orders` - Create new order
-- `GET /orders/{id}` - Get order details
-- `PUT /orders/{id}/status` - Update order status
+### Phase 4: Production Deployment (Planned)
+- [ ] CI/CD pipeline
+- [ ] Monitoring and logging
+- [ ] Security hardening
+- [ ] Performance monitoring
+- [ ] Documentation completion
 
-## Domain Models
+## 🔐 Security
 
-### Order Flow
-```
-CREATED → PAID → PREPARING → READY → COMPLETED
-```
+### Frontend Security
+- XSS protection through React's built-in sanitization
+- CSRF protection with proper token handling
+- Secure authentication token storage
+- Input validation and sanitization
+- HTTPS enforcement in production
 
-### Order Types
-- `DINE_IN` - Restaurant dining
-- `TAKEOUT` - Customer pickup
-- `DELIVERY` - Third-party delivery
+### Backend Security (Planned)
+- JWT authentication
+- Input validation
+- SQL injection prevention
+- Rate limiting
+- CORS configuration
 
-### Menu Structure
-- Only one menu can be active at a time
-- Categories contain multiple items
-- Items have availability tracking
-- Automatic tax calculation (10%)
+## 📄 License
 
-## Development
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Project Structure
-```
-backend/
-├── cmd/server/          # Application entry point
-├── internal/
-│   ├── application/     # Services, handlers, DTOs
-│   ├── domain/         # Business entities and logic
-│   ├── infrastructure/ # Database, cache implementations
-│   └── interfaces/     # HTTP router and handlers
-├── migrations/         # PostgreSQL schema files
-└── shared/pkg/        # Shared utilities
-```
+## 🆘 Support
 
-### Key Features
-- **Type-Safe IDs**: Generic entity IDs prevent mixing between domains
-- **Advanced Error Handling**: Structured error responses with proper classification
-- **Event System**: Type-safe event handling with generics
-- **Repository Pattern**: Clean data access abstraction
-- **Graceful Shutdown**: Proper cleanup with 30-second timeout
+For questions and support:
+- Check the documentation in the respective directories
+- Review existing issues
+- Create a new issue with detailed information
+- Contact the development team
 
-## Contributing
+---
 
-1. Follow Clean Architecture principles
-2. Use existing patterns for new features
-3. Add proper error handling and validation
-4. Include database migrations for schema changes
-5. Test endpoints with proper status codes
-
-## License
-
-[Add your license here]
+**Built with modern web technologies for scalable, maintainable applications**
