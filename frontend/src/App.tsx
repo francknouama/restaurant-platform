@@ -10,6 +10,7 @@ import { LoginPage } from '@pages/auth/LoginPage'
 import { RegisterPage } from '@pages/auth/RegisterPage'
 import { DashboardPage } from '@pages/DashboardPage'
 import { ProfilePage } from '@pages/ProfilePage'
+import { TasksPage } from '@pages/TasksPage'
 import { NotFoundPage } from '@pages/NotFoundPage'
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="tasks" element={<TasksPage />} />
         </Route>
 
         {/* 404 page */}

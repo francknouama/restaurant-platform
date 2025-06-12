@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, XMarkIcon, BellIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@hooks/useAuth'
 
 export const Header: React.FC = () => {
@@ -13,6 +13,7 @@ export const Header: React.FC = () => {
     ...(isAuthenticated
       ? [
           { name: 'Dashboard', href: '/dashboard', current: location.pathname === '/dashboard' },
+          { name: 'Tasks', href: '/dashboard/tasks', current: location.pathname.startsWith('/dashboard/tasks') },
           { name: 'Profile', href: '/dashboard/profile', current: location.pathname === '/dashboard/profile' },
         ]
       : []),
@@ -25,7 +26,7 @@ export const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <Link to="/" className="text-2xl font-bold text-primary-600">
-              App
+              TaskFlow
             </Link>
           </div>
 
@@ -50,9 +51,30 @@ export const Header: React.FC = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700">
-                  Hello, {user?.firstName}
-                </span>
+                <button className="p-2 text-gray-400 hover:text-gray-500">
+                  <BellIcon className="h-6 w-6" />
+                </button>
+                <div className="flex items-center space-x-3">
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-900">
+                      {user?.firstName} {user?.lastName}
+                    </div>
+                    <div className="text-xs text-gray-500">{user?.role}</div>
+                  </div>
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt="Profile"
+                      className="h-8 w-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
+                      <span className="text-sm font-medium text-primary-600">
+                        {user?.firstName?.[0]}{user?.lastName?.[0]}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={logout}
                   className="btn btn-secondary text-sm"
@@ -109,8 +131,26 @@ export const Header: React.FC = () => {
             <div className="border-t border-gray-200 pt-4 pb-3">
               {isAuthenticated ? (
                 <div className="px-3">
-                  <div className="text-base font-medium text-gray-800 mb-2">
-                    Hello, {user?.firstName}
+                  <div className="flex items-center mb-3">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt="Profile"
+                        className="h-10 w-10 rounded-full"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary-600">
+                          {user?.firstName?.[0]}{user?.lastName?.[0]}
+                        </span>
+                      </div>
+                    )}
+                    <div className="ml-3">
+                      <div className="text-base font-medium text-gray-800">
+                        {user?.firstName} {user?.lastName}
+                      </div>
+                      <div className="text-sm text-gray-500">{user?.email}</div>
+                    </div>
                   </div>
                   <button
                     onClick={() => {
