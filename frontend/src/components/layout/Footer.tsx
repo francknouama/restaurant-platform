@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { HealthCheck } from '@components/ui/HealthCheck'
 
 export const Footer: React.FC = () => {
   return (
@@ -12,9 +13,14 @@ export const Footer: React.FC = () => {
               App
             </Link>
             <p className="text-gray-400 mb-4 max-w-md">
-              A modern frontend application built with React, TypeScript, and Tailwind CSS.
-              Featuring micro-frontend architecture and comprehensive testing.
+              A modern full-stack application with React frontend and Go microservices backend.
+              Built for scalability, performance, and maintainability.
             </p>
+            
+            {/* Health Status */}
+            <div className="mt-4">
+              <HealthCheck showDetails={false} />
+            </div>
           </div>
 
           {/* Navigation Links */}
@@ -72,10 +78,16 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center">
-          <p className="text-gray-400">
+        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-gray-400 text-center md:text-left">
             © 2025 Frontend Application. All rights reserved.
           </p>
+          
+          <div className="mt-4 md:mt-0">
+            <p className="text-gray-500 text-sm">
+              Powered by React + Go Microservices
+            </p>
+          </div>
         </div>
       </div>
     </footer>

@@ -3,10 +3,12 @@ import { persist } from 'zustand/middleware'
 import { AuthState, User } from '@types/index'
 
 interface AuthStore extends AuthState {
-  setAuth: (user: User, token: string) => void
+  setAuth: (user: User, token: string, refreshToken?: string) => void
   clearAuth: () => void
   setLoading: (loading: boolean) => void
   updateUser: (user: Partial<User>) => void
+  setToken: (token: string) => void
+  setRefreshToken: (refreshToken: string) => void
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -14,13 +16,15 @@ export const useAuthStore = create<AuthStore>()(
     (set, get) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
 
-      setAuth: (user: User, token: string) => {
+      setAuth: (user: User, token: string, refreshToken?: string) => {
         set({
           user,
           token,
+          refreshToken,
           isAuthenticated: true,
           isLoading: false,
         })
@@ -30,6 +34,7 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user: null,
           token: null,
+          refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
         })
@@ -47,12 +52,21 @@ export const useAuthStore = create<AuthStore>()(
           })
         }
       },
+
+      setToken: (token: string) => {
+        set({ token })
+      },
+
+      setRefreshToken: (refreshToken: string) => {
+        set({ refreshToken })
+      },
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
     }

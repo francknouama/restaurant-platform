@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
 // Mock environment variables
 Object.defineProperty(window, 'matchMedia', {
@@ -24,3 +25,13 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 
 // Setup fetch mock
 global.fetch = vi.fn()
+
+// Mock environment variables for testing
+vi.mock('import.meta', () => ({
+  env: {
+    VITE_API_URL: 'http://localhost:8080/api',
+    VITE_AUTH_SERVICE_URL: 'http://localhost:8081',
+    VITE_USER_SERVICE_URL: 'http://localhost:8082',
+    VITE_API_GATEWAY_URL: 'http://localhost:8080',
+  }
+}))

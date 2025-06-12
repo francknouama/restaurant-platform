@@ -4,11 +4,25 @@ import { useNavigate } from 'react-router-dom'
 
 import { authApi } from '@api/auth'
 import { useAuthStore } from '@store/authStore'
-import { LoginCredentials, RegisterCredentials } from '@types/index'
+import { LoginCredentials, RegisterCredentials, GoUser, GoAuthResponse } from '@types/index'
+
+// Helper function to convert Go user format to frontend format
+const convertGoUser = (goUser: GoUser) => ({
+  id: goUser.id,
+  email: goUser.email,
+  firstName: goUser.first_name,
+  lastName: goUser.last_name,
+  avatar: goUser.avatar_url,
+  role: goUser.role as 'user' | 'admin' | 'moderator',
+  isEmailVerified: goUser.is_email_verified,
+  createdAt: goUser.created_at,
+  updatedAt: goUser.updated_at,
+  lastLoginAt: goUser.last_login_at,
+})
 
 export const useAuth = () => {
   const navigate = useNavigate()
-  const { setAuth, clearAuth, setLoading, user, isAuthenticated } = useAuthStore()
+  const { setAuth, clearAuth, setLoading, user, isAuthenticated, token, refreshToken } = useAuthStore()
 
   const loginMutation = useMutation(authApi.login, {
     onMutate: () => {
@@ -16,7 +30,14 @@ export const useAuth = () => {
     },
     onSuccess: (response) => {
       if (response.data) {
-        setAuth(response.data.user, response.data.token)
+        const { user: goUser, token, refresh_token } = response.data
+        
+        // Convert Go user format to frontend format if needed
+        const frontendUser = 'first_name' in goUser 
+          ? convertGoUser(goUser as GoUser)
+          : goUser
+        
+        setAuth(frontendUser, token, refresh_token)
         toast.success('Login successful!')
         navigate('/dashboard')
       }
@@ -33,7 +54,14 @@ export const useAuth = () => {
     },
     onSuccess: (response) => {
       if (response.data) {
-        setAuth(response.data.user, response.data.token)
+        const { user: goUser, token, refresh_token } = response.data
+        
+        // Convert Go user format to frontend format if needed
+        const frontendUser = 'first_name' in goUser 
+          ? convertGoUser(goUser as GoUser)
+          : goUser
+        
+        setAuth(frontendUser, token, refresh_token)
         toast.success('Registration successful!')
         navigate('/dashboard')
       }
@@ -58,17 +86,48 @@ export const useAuth = () => {
   })
 
   // Query to verify current user
-  const { data: currentUser } = useQuery(
+  const { data: currentUser, refetch: refetchUser } = useQuery(
     ['auth', 'me'],
     authApi.me,
     {
-      enabled: isAuthenticated && !!user,
+      enabled: isAuthenticated && !!user && !!token,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      onError: () => {
-        clearAuth()
+      retry: 1,
+      onSuccess: (response) => {
+        if (response.data) {
+          const goUser = response.data
+          const frontendUser = 'first_name' in goUser 
+            ? convertGoUser(goUser as GoUser)
+            : goUser
+          
+          // Update user data if it has changed
+          if (JSON.stringify(user) !== JSON.stringify(frontendUser)) {
+            setAuth(frontendUser, token!, refreshToken)
+          }
+        }
+      },
+      onError: (error: any) => {
+        // Only clear auth if it's an authentication error
+        if (error.statusCode === 401) {
+          clearAuth()
+        }
       },
     }
   )
+
+  // Auto-refresh token
+  const refreshTokenMutation = useMutation(authApi.refreshToken, {
+    onSuccess: (response) => {
+      if (response.data) {
+        const { token: newToken, refresh_token: newRefreshToken } = response.data
+        setAuth(user!, newToken, newRefreshToken || refreshToken)
+      }
+    },
+    onError: () => {
+      clearAuth()
+      navigate('/login')
+    },
+  })
 
   const login = (credentials: LoginCredentials) => {
     loginMutation.mutate(credentials)
@@ -82,6 +141,12 @@ export const useAuth = () => {
     logoutMutation.mutate()
   }
 
+  const refreshAuthToken = () => {
+    if (refreshToken) {
+      refreshTokenMutation.mutate(refreshToken)
+    }
+  }
+
   return {
     user,
     isAuthenticated,
@@ -89,6 +154,8 @@ export const useAuth = () => {
     login,
     register,
     logout,
+    refreshAuthToken,
+    refetchUser,
     currentUser: currentUser?.data,
   }
 }
