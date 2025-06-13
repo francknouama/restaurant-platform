@@ -1,27 +1,73 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useGlobalStore } from './store';
-import { eventBus } from './eventBus';
-import { EventBusEvent } from './types';
+import { eventBus, RestaurantEvent, MenuItemUpdatedEvent, OrderCreatedEvent, OrderStatusUpdatedEvent, KitchenOrderUpdateEvent } from './eventBus';
 
 // Hook for listening to cross-MFE events
 export const useEventBus = (
   eventType: string,
-  handler: (event: EventBusEvent) => void,
+  handler: (event: RestaurantEvent) => void,
   deps: any[] = []
 ) => {
   useEffect(() => {
-    eventBus.on(eventType, handler);
-    
-    return () => {
-      eventBus.off(eventType, handler);
-    };
+    const unsubscribe = eventBus.on(eventType, handler);
+    return unsubscribe;
   }, deps);
 };
 
 // Hook for emitting cross-MFE events
 export const useEventEmitter = () => {
   return {
-    emit: (type: string, payload: any) => eventBus.emit(type, payload),
+    emit: (type: string, payload: any, target?: string) => eventBus.emit(type, payload, target),
+  };
+};
+
+// Restaurant-specific event hooks
+export const useRestaurantEvents = () => {
+  const emitMenuItemUpdated = useCallback((itemId: string, updates: { available?: boolean; price?: number; name?: string }) => {
+    eventBus.emitMenuItemUpdated(itemId, updates);
+  }, []);
+
+  const emitOrderCreated = useCallback((orderData: OrderCreatedEvent['payload']) => {
+    eventBus.emitOrderCreated(orderData);
+  }, []);
+
+  const emitOrderStatusUpdated = useCallback((orderId: string, status: OrderStatusUpdatedEvent['payload']['status'], previousStatus: string, estimatedTime?: number) => {
+    eventBus.emitOrderStatusUpdated(orderId, status, previousStatus, estimatedTime);
+  }, []);
+
+  const emitKitchenOrderUpdate = useCallback((orderId: string, itemStatuses: KitchenOrderUpdateEvent['payload']['itemStatuses']) => {
+    eventBus.emitKitchenOrderUpdate(orderId, itemStatuses);
+  }, []);
+
+  const onMenuItemUpdated = useCallback((handler: (event: MenuItemUpdatedEvent) => void) => {
+    return eventBus.onMenuItemUpdated(handler);
+  }, []);
+
+  const onOrderCreated = useCallback((handler: (event: OrderCreatedEvent) => void) => {
+    return eventBus.onOrderCreated(handler);
+  }, []);
+
+  const onOrderStatusUpdated = useCallback((handler: (event: OrderStatusUpdatedEvent) => void) => {
+    return eventBus.onOrderStatusUpdated(handler);
+  }, []);
+
+  const onKitchenOrderUpdate = useCallback((handler: (event: KitchenOrderUpdateEvent) => void) => {
+    return eventBus.onKitchenOrderUpdate(handler);
+  }, []);
+
+  return {
+    // Emitters
+    emitMenuItemUpdated,
+    emitOrderCreated,
+    emitOrderStatusUpdated,
+    emitKitchenOrderUpdate,
+    // Listeners
+    onMenuItemUpdated,
+    onOrderCreated,
+    onOrderStatusUpdated,
+    onKitchenOrderUpdate,
+    // Event history
+    getEventHistory: eventBus.getHistory.bind(eventBus),
   };
 };
 

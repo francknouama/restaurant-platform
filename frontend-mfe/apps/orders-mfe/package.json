@@ -19,7 +19,11 @@
     "react-router-dom": "^6.8.0",
     "@restaurant/shared-ui": "workspace:*",
     "@restaurant/shared-utils": "workspace:*",
-    "@restaurant/shared-state": "workspace:*"
+    "@restaurant/shared-state": "workspace:*",
+    "zustand": "^4.4.7",
+    "clsx": "^2.0.0",
+    "date-fns": "^2.30.0",
+    "lucide-react": "^0.263.1"
   },
   "devDependencies": {
     "@restaurant/mfe-tools": "workspace:*",
