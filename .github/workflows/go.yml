@@ -36,7 +36,7 @@ jobs:
       run: |
         echo "Building shared module..."
         go mod download
-        go build -v ./...
+        go build -v -mod=readonly ./...
 
     - name: Build and test individual services
       working-directory: ./backend
@@ -56,7 +56,7 @@ jobs:
           go mod download
           
           echo "Building $service modules..."
-          go build -v ./...
+          go build -v -mod=readonly ./...
           
           echo "Running tests for $service..."
           # Skip tests if no test files exist
@@ -67,7 +67,7 @@ jobs:
             find . -name "*_test.go" -type f
             # Disable workspace mode for individual service testing
             echo "Running tests with coverage..."
-            GOWORK=off go test -v ./... -cover -coverprofile=coverage.out || {
+            GOWORK=off go test -v -mod=readonly ./... -cover -coverprofile=coverage.out || {
               echo "❌ Tests failed for $service"
               exit 1
             }
@@ -79,7 +79,7 @@ jobs:
           fi
           
           echo "Building $service binary..."
-          go build -o ../bin/$service ./cmd/server
+          go build -v -mod=readonly -o ../bin/$service ./cmd/server
           
           echo "✓ $service completed successfully"
           cd ..
