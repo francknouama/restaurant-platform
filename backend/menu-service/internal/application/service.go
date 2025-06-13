@@ -31,12 +31,17 @@ func (s *MenuService) CreateMenu(ctx context.Context, name string) (*menu.Menu, 
 	}
 
 	// Publish menu created event
-	eventData := events.ToEventData(events.MenuCreatedData{
+	eventData, err := events.ToEventData(events.MenuCreatedData{
 		MenuID:   m.ID.String(),
 		Name:     m.Name,
 		Version:  m.Version,
 		IsActive: m.IsActive,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return nil, err
+	}
 	
 	event := events.NewDomainEvent(events.MenuCreatedEvent, m.ID.String(), eventData).
 		WithMetadata("service", "menu-service")
@@ -126,13 +131,18 @@ func (s *MenuService) SetItemAvailability(ctx context.Context, menuID string, it
 	}
 
 	// Publish item availability changed event
-	eventData := events.ToEventData(events.ItemAvailabilityChangedData{
+	eventData, err := events.ToEventData(events.ItemAvailabilityChangedData{
 		MenuID:      m.ID.String(),
 		ItemID:      string(itemID),
 		ItemName:    item.Name,
 		IsAvailable: isAvailable,
 		CategoryID:  string(item.CategoryID),
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
 	
 	event := events.NewDomainEvent(events.ItemAvailabilityChangedEvent, m.ID.String(), eventData).
 		WithMetadata("service", "menu-service").
@@ -158,11 +168,16 @@ func (s *MenuService) ActivateMenu(ctx context.Context, menuID string) error {
 	}
 
 	// Publish menu activated event
-	eventData := events.ToEventData(events.MenuActivatedData{
+	eventData, err := events.ToEventData(events.MenuActivatedData{
 		MenuID:  m.ID.String(),
 		Name:    m.Name,
 		Version: m.Version,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
 	
 	event := events.NewDomainEvent(events.MenuActivatedEvent, m.ID.String(), eventData).
 		WithMetadata("service", "menu-service")

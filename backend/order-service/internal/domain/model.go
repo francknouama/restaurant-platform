@@ -12,6 +12,10 @@ type (
 	OrderItemEntity struct{}
 )
 
+// Implement EntityMarker interface
+func (OrderEntity) IsEntity()     {}
+func (OrderItemEntity) IsEntity() {}
+
 // Type-safe ID types using generics
 type (
 	OrderID     = types.ID[OrderEntity]
@@ -82,7 +86,7 @@ type OrderFilters struct {
 // NewOrder creates a new order with validated fields using modern error handling
 func NewOrder(customerID string, orderType OrderType) (*Order, error) {
 	if customerID == "" {
-		return nil, errors.NewValidationError("customerID", "customer ID is required")
+		return nil, errors.WrapValidation("NewOrder", "customerID", "customer ID is required", nil)
 	}
 
 	now := time.Now()
@@ -102,13 +106,13 @@ func NewOrder(customerID string, orderType OrderType) (*Order, error) {
 // AddItem adds an item to the order and recalculates the total
 func (o *Order) AddItem(menuItemID, name string, quantity int, unitPrice float64, mods []string, notes string) error {
 	if menuItemID == "" {
-		return errors.NewValidationError("menuItemID", "menu item ID is required")
+		return errors.WrapValidation("AddItem", "menuItemID", "menu item ID is required", nil)
 	}
 	if quantity <= 0 {
-		return errors.NewValidationError("quantity", "quantity must be positive")
+		return errors.WrapValidation("AddItem", "quantity", "quantity must be positive", nil)
 	}
 	if unitPrice < 0 {
-		return errors.NewValidationError("unitPrice", "unit price cannot be negative")
+		return errors.WrapValidation("AddItem", "unitPrice", "unit price cannot be negative", nil)
 	}
 
 	// Create a new item
@@ -147,13 +151,13 @@ func (o *Order) RemoveItem(itemID OrderItemID) error {
 			return nil
 		}
 	}
-	return errors.WrapBusinessError("ITEM_NOT_FOUND", "item not found in order", errors.ErrNotFound)
+	return errors.WrapNotFound("Operation", "item", string(itemID), errors.ErrNotFound)
 }
 
 // UpdateItemQuantity updates the quantity of an item
 func (o *Order) UpdateItemQuantity(itemID OrderItemID, quantity int) error {
 	if quantity <= 0 {
-		return errors.NewValidationError("quantity", "quantity must be positive")
+		return errors.WrapValidation("UpdateItemQuantity", "quantity", "quantity must be positive", nil)
 	}
 
 	for _, item := range o.Items {
@@ -169,7 +173,7 @@ func (o *Order) UpdateItemQuantity(itemID OrderItemID, quantity int) error {
 			return nil
 		}
 	}
-	return errors.WrapBusinessError("ITEM_NOT_FOUND", "item not found in order", errors.ErrNotFound)
+	return errors.WrapNotFound("Operation", "item", string(itemID), errors.ErrNotFound)
 }
 
 // recalculateTotal updates the total amount of the order
@@ -191,22 +195,22 @@ func (o *Order) UpdateStatus(status OrderStatus) error {
 	switch o.Status {
 	case OrderStatusCreated:
 		if status != OrderStatusPaid && status != OrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition from CREATED")
+			return errors.WrapConflict("UpdateStatus", "status_transition", "invalid status transition from CREATED", nil)
 		}
 	case OrderStatusPaid:
 		if status != OrderStatusPreparing && status != OrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition from PAID")
+			return errors.WrapConflict("UpdateStatus", "status_transition", "invalid status transition from PAID", nil)
 		}
 	case OrderStatusPreparing:
 		if status != OrderStatusReady && status != OrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition from PREPARING")
+			return errors.WrapConflict("UpdateStatus", "status_transition", "invalid status transition from PREPARING", nil)
 		}
 	case OrderStatusReady:
 		if status != OrderStatusCompleted && status != OrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition from READY")
+			return errors.WrapConflict("UpdateStatus", "status_transition", "invalid status transition from READY", nil)
 		}
 	case OrderStatusCompleted, OrderStatusCancelled:
-		return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "cannot change status of completed or cancelled order")
+		return errors.WrapConflict("UpdateStatus", "status_transition", "cannot change status of completed or cancelled order", nil)
 	}
 
 	o.Status = status
@@ -217,10 +221,10 @@ func (o *Order) UpdateStatus(status OrderStatus) error {
 // SetTableID sets the table ID for dine-in orders
 func (o *Order) SetTableID(tableID string) error {
 	if o.Type != OrderTypeDineIn {
-		return errors.NewBusinessError("INVALID_ORDER_TYPE", "table ID can only be set for dine-in orders")
+		return errors.WrapConflict("SetTableID", "order_type", "table ID can only be set for dine-in orders", nil)
 	}
 	if tableID == "" {
-		return errors.NewValidationError("tableID", "table ID is required for dine-in orders")
+		return errors.WrapValidation("SetTableID", "tableID", "table ID is required for dine-in orders", nil)
 	}
 
 	o.TableID = tableID
@@ -231,10 +235,10 @@ func (o *Order) SetTableID(tableID string) error {
 // SetDeliveryAddress sets the delivery address for delivery orders
 func (o *Order) SetDeliveryAddress(address string) error {
 	if o.Type != OrderTypeDelivery {
-		return errors.NewBusinessError("INVALID_ORDER_TYPE", "delivery address can only be set for delivery orders")
+		return errors.WrapConflict("SetDeliveryAddress", "order_type", "delivery address can only be set for delivery orders", nil)
 	}
 	if address == "" {
-		return errors.NewValidationError("address", "delivery address is required for delivery orders")
+		return errors.WrapValidation("SetDeliveryAddress", "address", "delivery address is required for delivery orders", nil)
 	}
 
 	o.DeliveryAddress = address
@@ -256,7 +260,7 @@ func (o *Order) CanCancel() bool {
 // Cancel cancels the order
 func (o *Order) Cancel() error {
 	if !o.CanCancel() {
-		return errors.NewBusinessError("ORDER_NOT_CANCELLABLE", "cannot cancel completed or already cancelled order")
+		return errors.WrapConflict("Cancel", "order_status", "cannot cancel completed or already cancelled order", nil)
 	}
 
 	o.Status = OrderStatusCancelled
@@ -272,20 +276,20 @@ func (o *Order) IsEmpty() bool {
 // Validate checks if the order is valid for the given operation
 func (o *Order) Validate() error {
 	if o.CustomerID == "" {
-		return errors.NewValidationError("customerID", "customer ID is required")
+		return errors.WrapValidation("Validate", "customerID", "customer ID is required", nil)
 	}
 
 	if len(o.Items) == 0 {
-		return errors.NewValidationError("items", "order must have at least one item")
+		return errors.WrapValidation("Validate", "items", "order must have at least one item", nil)
 	}
 
 	// Check type-specific requirements
 	if o.Type == OrderTypeDineIn && o.TableID == "" {
-		return errors.NewValidationError("tableID", "table ID is required for dine-in orders")
+		return errors.WrapValidation("Validate", "tableID", "table ID is required for dine-in orders", nil)
 	}
 
 	if o.Type == OrderTypeDelivery && o.DeliveryAddress == "" {
-		return errors.NewValidationError("deliveryAddress", "delivery address is required for delivery orders")
+		return errors.WrapValidation("Validate", "deliveryAddress", "delivery address is required for delivery orders", nil)
 	}
 
 	return nil

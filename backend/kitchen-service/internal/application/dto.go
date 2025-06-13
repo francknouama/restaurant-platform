@@ -1,7 +1,7 @@
 package application
 
 import (
-	"kitchen-service/internal/domain"
+	"github.com/restaurant-platform/kitchen-service/internal/domain"
 	"time"
 )
 

@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -482,7 +481,7 @@ func validateOrderType(orderType string) (domain.OrderType, error) {
 	case string(domain.OrderTypeDelivery):
 		return domain.OrderTypeDelivery, nil
 	default:
-		return "", errors.NewValidationError("type", "invalid order type")
+		return "", errors.WrapValidation("validateOrderType", "type", "invalid order type", nil)
 	}
 }
 
@@ -501,7 +500,7 @@ func validateOrderStatus(status string) (domain.OrderStatus, error) {
 	case string(domain.OrderStatusCancelled):
 		return domain.OrderStatusCancelled, nil
 	default:
-		return "", errors.NewValidationError("status", "invalid order status")
+		return "", errors.WrapValidation("validateOrderStatus", "status", "invalid order status", nil)
 	}
 }
 
@@ -518,11 +517,10 @@ func handleError(c *gin.Context, err error) {
 			Error:   "Validation error",
 			Message: err.Error(),
 		})
-	case errors.IsBusinessError(err):
+	case errors.IsConflictError(err):
 		c.JSON(http.StatusUnprocessableEntity, application.ErrorResponse{
 			Error:   "Business rule violation",
 			Message: err.Error(),
-			Code:    errors.GetErrorCode(err),
 		})
 	default:
 		c.JSON(http.StatusInternalServerError, application.ErrorResponse{

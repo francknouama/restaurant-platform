@@ -2,14 +2,13 @@ package interfaces
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"kitchen-service/internal/application"
-	"kitchen-service/internal/domain"
-	"restaurant-platform/shared/pkg/errors"
+	"github.com/restaurant-platform/kitchen-service/internal/application"
+	"github.com/restaurant-platform/kitchen-service/internal/domain"
+	"github.com/restaurant-platform/shared/pkg/errors"
 )
 
 // KitchenOrderHandler handles HTTP requests for kitchen orders
@@ -423,11 +422,11 @@ func handleError(c *gin.Context, err error) {
 			Error:   "Validation error",
 			Message: err.Error(),
 		})
-	case errors.IsBusinessError(err):
+	case errors.IsConflictError(err):
 		c.JSON(http.StatusUnprocessableEntity, application.ErrorResponse{
 			Error:   "Business rule violation",
 			Message: err.Error(),
-			Code:    errors.GetErrorCode(err),
+			// Code removed - GetErrorCode not available in new API
 		})
 	default:
 		c.JSON(http.StatusInternalServerError, application.ErrorResponse{

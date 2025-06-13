@@ -35,7 +35,7 @@ func (s *ReservationService) CreateReservation(ctx context.Context, customerID, 
 	}
 
 	// Publish reservation created event
-	eventData := events.ToEventData(events.ReservationCreatedData{
+	eventData, err := events.ToEventData(events.ReservationCreatedData{
 		ReservationID: res.ID.String(),
 		CustomerID:    res.CustomerID,
 		TableID:       res.TableID,
@@ -43,6 +43,11 @@ func (s *ReservationService) CreateReservation(ctx context.Context, customerID, 
 		DateTime:      res.DateTime.Format(time.RFC3339),
 		Status:        string(res.Status),
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return nil, err
+	}
 	
 	event := events.NewDomainEvent(events.ReservationCreatedEvent, res.ID.String(), eventData).
 		WithMetadata("service", "reservation-service")
@@ -93,7 +98,7 @@ func (s *ReservationService) ConfirmReservation(ctx context.Context, id reservat
 	}
 
 	// Publish reservation confirmed event
-	eventData := events.ToEventData(events.ReservationStatusChangedData{
+	eventData, err := events.ToEventData(events.ReservationStatusChangedData{
 		ReservationID: res.ID.String(),
 		CustomerID:    res.CustomerID,
 		TableID:       res.TableID,
@@ -102,6 +107,11 @@ func (s *ReservationService) ConfirmReservation(ctx context.Context, id reservat
 		OldStatus:     oldStatus,
 		NewStatus:     string(res.Status),
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
 	
 	event := events.NewDomainEvent(events.ReservationConfirmedEvent, res.ID.String(), eventData).
 		WithMetadata("service", "reservation-service")

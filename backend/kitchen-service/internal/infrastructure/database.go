@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"restaurant-platform/shared/pkg/config"
+	"github.com/restaurant-platform/shared/pkg/config"
 
 	_ "github.com/lib/pq"
 )

@@ -1,8 +1,8 @@
 package domain
 
 import (
-	"restaurant-platform/shared/pkg/errors"
-	"restaurant-platform/shared/pkg/types"
+	"github.com/restaurant-platform/shared/pkg/errors"
+	"github.com/restaurant-platform/shared/pkg/types"
 	"time"
 )
 
@@ -11,6 +11,10 @@ type (
 	KitchenOrderEntity struct{}
 	KitchenItemEntity  struct{}
 )
+
+// Implement EntityMarker interface
+func (KitchenOrderEntity) IsEntity() {}
+func (KitchenItemEntity) IsEntity()  {}
 
 // Type-safe ID types using generics
 type (
@@ -94,7 +98,7 @@ type KitchenOrderFilters struct {
 // NewKitchenOrder creates a new kitchen order with validated fields
 func NewKitchenOrder(orderID, tableID string) (*KitchenOrder, error) {
 	if orderID == "" {
-		return nil, errors.NewValidationError("orderID", "order ID is required")
+		return nil, errors.WrapValidation("NewKitchenOrder", "orderID", "order ID is required", nil)
 	}
 
 	now := time.Now()
@@ -114,10 +118,10 @@ func NewKitchenOrder(orderID, tableID string) (*KitchenOrder, error) {
 // AddItem adds an item to the kitchen order
 func (ko *KitchenOrder) AddItem(menuItemID, name string, quantity int, prepTime time.Duration, mods []string, notes string) error {
 	if menuItemID == "" {
-		return errors.NewValidationError("menuItemID", "menu item ID is required")
+		return errors.WrapValidation("AddItem", "menuItemID", "menu item ID is required", nil)
 	}
 	if quantity <= 0 {
-		return errors.NewValidationError("quantity", "quantity must be positive")
+		return errors.WrapValidation("AddItem", "quantity", "quantity must be positive", nil)
 	}
 
 	// Create a new item
@@ -156,7 +160,7 @@ func (ko *KitchenOrder) RemoveItem(itemID KitchenItemID) error {
 			return nil
 		}
 	}
-	return errors.WrapBusinessError("ITEM_NOT_FOUND", "item not found in kitchen order", errors.ErrNotFound)
+	return errors.WrapNotFound("Operation", "kitchen item", "itemID", nil)
 }
 
 // recalculateEstimatedTime updates the estimated preparation time
@@ -175,7 +179,7 @@ func (ko *KitchenOrder) recalculateEstimatedTime() {
 // AssignToStation assigns the kitchen order to a station
 func (ko *KitchenOrder) AssignToStation(stationID string) error {
 	if stationID == "" {
-		return errors.NewValidationError("stationID", "station ID is required")
+		return errors.WrapValidation("AssignToStation", "stationID", "station ID is required", nil)
 	}
 
 	ko.AssignedStation = stationID
@@ -191,20 +195,20 @@ func (ko *KitchenOrder) UpdateItemStatus(itemID KitchenItemID, status KitchenIte
 			switch item.Status {
 			case KitchenItemStatusNew:
 				if status != KitchenItemStatusPreparing && status != KitchenItemStatusCancelled {
-					return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition")
+					return errors.WrapConflict("StatusUpdate", "status_transition", "invalid status transition", nil)
 				}
 				if status == KitchenItemStatusPreparing {
 					item.StartedAt = time.Now()
 				}
 			case KitchenItemStatusPreparing:
 				if status != KitchenItemStatusReady && status != KitchenItemStatusCancelled {
-					return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition")
+					return errors.WrapConflict("StatusUpdate", "status_transition", "invalid status transition", nil)
 				}
 				if status == KitchenItemStatusReady {
 					item.CompletedAt = time.Now()
 				}
 			case KitchenItemStatusReady, KitchenItemStatusCancelled:
-				return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "cannot change status of ready or cancelled item")
+				return errors.WrapConflict("StatusUpdate", "status_transition", "cannot change status of ready or cancelled item", nil)
 			}
 
 			item.Status = status
@@ -219,7 +223,7 @@ func (ko *KitchenOrder) UpdateItemStatus(itemID KitchenItemID, status KitchenIte
 			return nil
 		}
 	}
-	return errors.WrapBusinessError("ITEM_NOT_FOUND", "item not found in kitchen order", errors.ErrNotFound)
+	return errors.WrapNotFound("Operation", "kitchen item", "itemID", nil)
 }
 
 // UpdateStatus changes the kitchen order status
@@ -228,24 +232,24 @@ func (ko *KitchenOrder) UpdateStatus(status KitchenOrderStatus) error {
 	switch ko.Status {
 	case KitchenOrderStatusNew:
 		if status != KitchenOrderStatusPreparing && status != KitchenOrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition")
+			return errors.WrapConflict("StatusUpdate", "status_transition", "invalid status transition", nil)
 		}
 		if status == KitchenOrderStatusPreparing {
 			ko.StartedAt = time.Now()
 		}
 	case KitchenOrderStatusPreparing:
 		if status != KitchenOrderStatusReady && status != KitchenOrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition")
+			return errors.WrapConflict("StatusUpdate", "status_transition", "invalid status transition", nil)
 		}
 	case KitchenOrderStatusReady:
 		if status != KitchenOrderStatusCompleted && status != KitchenOrderStatusCancelled {
-			return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "invalid status transition")
+			return errors.WrapConflict("StatusUpdate", "status_transition", "invalid status transition", nil)
 		}
 		if status == KitchenOrderStatusCompleted {
 			ko.CompletedAt = time.Now()
 		}
 	case KitchenOrderStatusCompleted, KitchenOrderStatusCancelled:
-		return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "cannot change status of completed or cancelled order")
+		return errors.WrapConflict("StatusUpdate", "status_transition", "cannot change status of completed or cancelled order", nil)
 	}
 
 	ko.Status = status
@@ -301,7 +305,7 @@ func (ko *KitchenOrder) AddNotes(notes string) {
 // Cancel cancels the kitchen order
 func (ko *KitchenOrder) Cancel() error {
 	if ko.Status == KitchenOrderStatusCompleted {
-		return errors.NewBusinessError("ORDER_NOT_CANCELLABLE", "cannot cancel a completed order")
+		return errors.WrapConflict("Cancel", "kitchen order", "cannot cancel a completed order", nil)
 	}
 
 	ko.Status = KitchenOrderStatusCancelled
@@ -362,11 +366,11 @@ func (ko *KitchenOrder) TimeRemaining() time.Duration {
 // Validate checks if the kitchen order is valid
 func (ko *KitchenOrder) Validate() error {
 	if ko.OrderID == "" {
-		return errors.NewValidationError("orderID", "order ID is required")
+		return errors.WrapValidation("Validate", "orderID", "order ID is required", nil)
 	}
 
 	if len(ko.Items) == 0 {
-		return errors.NewValidationError("items", "kitchen order must have at least one item")
+		return errors.WrapValidation("Validate", "items", "kitchen order must have at least one item", nil)
 	}
 
 	return nil

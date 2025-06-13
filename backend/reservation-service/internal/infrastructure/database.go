@@ -16,7 +16,7 @@ type DB struct {
 
 func NewConnection(cfg *config.DatabaseConfig) (*DB, error) {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.Username, cfg.Password, cfg.Database, cfg.SSLMode)
+		cfg.Host, cfg.Port, cfg.Username, cfg.Password, cfg.Name, cfg.SSLMode)
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

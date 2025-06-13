@@ -41,7 +41,7 @@ func (s *KitchenOrderService) CreateKitchenOrder(ctx context.Context, orderID, t
 	log.Printf("Created kitchen order: %s for order: %s", order.ID, orderID)
 
 	// Publish KitchenOrderCreatedEvent
-	eventData := events.ToEventData(events.KitchenOrderCreatedData{
+	eventData, err := events.ToEventData(events.KitchenOrderCreatedData{
 		KitchenOrderID: string(order.ID),
 		OrderID:        order.OrderID,
 		TableID:        order.TableID,
@@ -49,6 +49,11 @@ func (s *KitchenOrderService) CreateKitchenOrder(ctx context.Context, orderID, t
 		Priority:       string(order.Priority),
 		EstimatedTime:  int64(order.EstimatedTime.Seconds()),
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return nil, err
+	}
 
 	event := events.NewDomainEvent(events.KitchenOrderCreatedEvent, string(order.ID), eventData).
 		WithMetadata("service", "kitchen-service").
@@ -161,13 +166,18 @@ func (s *KitchenOrderService) UpdateOrderStatus(ctx context.Context, kitchenOrde
 	log.Printf("Updated kitchen order %s status from %s to %s", kitchenOrderID, previousStatus, status)
 
 	// Publish KitchenOrderStatusChangedEvent
-	eventData := events.ToEventData(events.KitchenOrderStatusChangedData{
+	eventData, err := events.ToEventData(events.KitchenOrderStatusChangedData{
 		KitchenOrderID: string(order.ID),
 		OrderID:        order.OrderID,
 		OldStatus:      string(previousStatus),
 		NewStatus:      string(status),
 		UpdatedBy:      "kitchen-service",
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
 
 	event := events.NewDomainEvent(events.KitchenOrderStatusChangedEvent, string(order.ID), eventData).
 		WithMetadata("service", "kitchen-service").
@@ -336,7 +346,7 @@ func ValidateKitchenOrderStatus(status string) (domain.KitchenOrderStatus, error
 	case string(domain.KitchenOrderStatusCancelled):
 		return domain.KitchenOrderStatusCancelled, nil
 	default:
-		return "", errors.NewValidationError("status", "invalid kitchen order status")
+		return "", errors.WrapValidation("ValidateKitchenOrderStatus", "status", "invalid kitchen order status", nil)
 	}
 }
 
@@ -352,7 +362,7 @@ func ValidateKitchenItemStatus(status string) (domain.KitchenItemStatus, error) 
 	case string(domain.KitchenItemStatusCancelled):
 		return domain.KitchenItemStatusCancelled, nil
 	default:
-		return "", errors.NewValidationError("status", "invalid kitchen item status")
+		return "", errors.WrapValidation("ValidateKitchenItemStatus", "status", "invalid kitchen item status", nil)
 	}
 }
 
@@ -368,6 +378,6 @@ func ValidateKitchenPriority(priority string) (domain.KitchenPriority, error) {
 	case string(domain.KitchenPriorityUrgent):
 		return domain.KitchenPriorityUrgent, nil
 	default:
-		return "", errors.NewValidationError("priority", "invalid kitchen priority")
+		return "", errors.WrapValidation("ValidateKitchenPriority", "priority", "invalid kitchen priority", nil)
 	}
 }

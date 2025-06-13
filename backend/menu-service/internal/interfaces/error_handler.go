@@ -5,7 +5,6 @@ import (
 	"net/http"
 	
 	"github.com/gin-gonic/gin"
-	"github.com/restaurant-platform/menu-service/internal/application"
 	sharedErrors "github.com/restaurant-platform/shared/pkg/errors"
 )
 

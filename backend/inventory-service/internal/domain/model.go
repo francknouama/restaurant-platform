@@ -13,6 +13,11 @@ type (
 	MovementEntity      struct{}
 )
 
+// Implement EntityMarker interface
+func (InventoryItemEntity) IsEntity() {}
+func (SupplierEntity) IsEntity()      {}
+func (MovementEntity) IsEntity()      {}
+
 // Type-safe ID types using generics
 type (
 	InventoryItemID = types.ID[InventoryItemEntity]
@@ -96,16 +101,16 @@ type Supplier struct {
 // NewInventoryItem creates a new inventory item with validated fields
 func NewInventoryItem(sku, name string, initialStock float64, unit UnitType, cost float64) (*InventoryItem, error) {
 	if sku == "" {
-		return nil, errors.NewValidationError("sku", "SKU is required")
+		return nil, errors.WrapValidation("NewInventoryItem", "sku", "SKU is required", nil)
 	}
 	if name == "" {
-		return nil, errors.NewValidationError("name", "name is required")
+		return nil, errors.WrapValidation("NewInventoryItem", "name", "name is required", nil)
 	}
 	if initialStock < 0 {
-		return nil, errors.NewValidationError("initialStock", "initial stock cannot be negative")
+		return nil, errors.WrapValidation("NewInventoryItem", "initialStock", "initial stock cannot be negative", nil)
 	}
 	if cost < 0 {
-		return nil, errors.NewValidationError("cost", "cost cannot be negative")
+		return nil, errors.WrapValidation("NewInventoryItem", "cost", "cost cannot be negative", nil)
 	}
 
 	now := time.Now()
@@ -125,7 +130,7 @@ func NewInventoryItem(sku, name string, initialStock float64, unit UnitType, cos
 // NewSupplier creates a new supplier with validated fields
 func NewSupplier(name string) (*Supplier, error) {
 	if name == "" {
-		return nil, errors.NewValidationError("name", "supplier name is required")
+		return nil, errors.WrapValidation("NewSupplier", "name", "supplier name is required", nil)
 	}
 
 	now := time.Now()
@@ -141,7 +146,7 @@ func NewSupplier(name string) (*Supplier, error) {
 // AddMovement adds a stock movement to an inventory item
 func (i *InventoryItem) AddMovement(movementType MovementType, quantity float64, notes, reference, performedBy string) (*StockMovement, error) {
 	if quantity <= 0 && movementType != MovementTypeAdjusted {
-		return nil, errors.NewValidationError("quantity", "quantity must be positive")
+		return nil, errors.WrapValidation("AddMovement", "quantity", "quantity must be positive", nil)
 	}
 
 	previousStock := i.CurrentStock
@@ -152,13 +157,13 @@ func (i *InventoryItem) AddMovement(movementType MovementType, quantity float64,
 		newStock = previousStock + quantity
 	case MovementTypeUsed, MovementTypeWasted, MovementTypeReturned:
 		if previousStock < quantity {
-			return nil, errors.NewBusinessError("INSUFFICIENT_STOCK", "insufficient stock for this operation")
+			return nil, errors.WrapConflict("AddMovement", "stock", "insufficient stock for this operation", nil)
 		}
 		newStock = previousStock - quantity
 	case MovementTypeAdjusted:
 		newStock = quantity // For adjustment, quantity is the new stock level
 	default:
-		return nil, errors.NewValidationError("movementType", "invalid movement type")
+		return nil, errors.WrapValidation("AddMovement", "movementType", "invalid movement type", nil)
 	}
 
 	now := time.Now()
@@ -185,13 +190,13 @@ func (i *InventoryItem) AddMovement(movementType MovementType, quantity float64,
 // UpdateThresholds updates the inventory item thresholds
 func (i *InventoryItem) UpdateThresholds(min, max, reorderPoint float64) error {
 	if min < 0 || max < 0 || reorderPoint < 0 {
-		return errors.NewValidationError("thresholds", "thresholds cannot be negative")
+		return errors.WrapValidation("UpdateThresholds", "thresholds", "thresholds cannot be negative", nil)
 	}
 	if max < min {
-		return errors.NewBusinessError("INVALID_THRESHOLDS", "maximum threshold cannot be less than minimum threshold")
+		return errors.WrapConflict("UpdateThresholds", "thresholds", "maximum threshold cannot be less than minimum threshold", nil)
 	}
 	if reorderPoint < min || reorderPoint > max {
-		return errors.NewBusinessError("INVALID_REORDER_POINT", "reorder point must be between minimum and maximum thresholds")
+		return errors.WrapConflict("UpdateThresholds", "reorder_point", "reorder point must be between minimum and maximum thresholds", nil)
 	}
 
 	i.MinThreshold = min
@@ -220,7 +225,7 @@ func (i *InventoryItem) CanFulfillOrder(quantity float64) bool {
 // ReserveStock reduces available stock for an order (without creating movement yet)
 func (i *InventoryItem) ReserveStock(quantity float64, reference, performedBy string) (*StockMovement, error) {
 	if !i.CanFulfillOrder(quantity) {
-		return nil, errors.NewBusinessError("INSUFFICIENT_STOCK", "insufficient stock to reserve")
+		return nil, errors.ErrInsufficientStock
 	}
 
 	return i.AddMovement(MovementTypeUsed, quantity, "Stock reserved for order", reference, performedBy)
@@ -235,10 +240,10 @@ func (i *InventoryItem) SetSupplier(supplierID SupplierID) {
 // UpdateDetails updates the inventory item details
 func (i *InventoryItem) UpdateDetails(name, description, category, location string, cost float64) error {
 	if name == "" {
-		return errors.NewValidationError("name", "name is required")
+		return errors.WrapValidation("UpdateDetails", "name", "name is required", nil)
 	}
 	if cost < 0 {
-		return errors.NewValidationError("cost", "cost cannot be negative")
+		return errors.WrapValidation("UpdateDetails", "cost", "cost cannot be negative", nil)
 	}
 
 	i.Name = name
@@ -254,7 +259,7 @@ func (i *InventoryItem) UpdateDetails(name, description, category, location stri
 // UpdateSupplierDetails updates the supplier details
 func (s *Supplier) UpdateDetails(name, contactName, email, phone, address, website, notes string) error {
 	if name == "" {
-		return errors.NewValidationError("name", "name is required")
+		return errors.WrapValidation("UpdateSupplierDetails", "name", "name is required", nil)
 	}
 
 	s.Name = name

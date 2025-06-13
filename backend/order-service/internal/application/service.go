@@ -37,7 +37,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID string, order
 	log.Printf("Created order: %s for customer: %s", order.ID, customerID)
 
 	// Publish OrderCreatedEvent
-	eventData := events.ToEventData(events.OrderCreatedData{
+	eventData, err := events.ToEventData(events.OrderCreatedData{
 		OrderID:     string(order.ID),
 		CustomerID:  order.CustomerID,
 		TableID:     order.TableID,
@@ -45,6 +45,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID string, order
 		TotalAmount: order.TotalAmount,
 		Status:      string(order.Status),
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return nil, err
+	}
 
 	event := events.NewDomainEvent(events.OrderCreatedEvent, string(order.ID), eventData).
 		WithMetadata("service", "order-service").
@@ -139,12 +144,17 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID domain.Ord
 	log.Printf("Updated order %s status from %s to %s", orderID, previousStatus, status)
 
 	// Publish OrderStatusChangedEvent
-	eventData := events.ToEventData(events.OrderStatusChangedData{
+	eventData, err := events.ToEventData(events.OrderStatusChangedData{
 		OrderID:   string(order.ID),
 		OldStatus: string(previousStatus),
 		NewStatus: string(status),
 		UpdatedBy: "order-service",
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
 
 	var eventType events.EventType
 	switch status {
@@ -242,12 +252,17 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID domain.OrderID) 
 	log.Printf("Cancelled order: %s", orderID)
 
 	// Publish OrderCancelledEvent
-	eventData := events.ToEventData(events.OrderStatusChangedData{
+	eventData, err := events.ToEventData(events.OrderStatusChangedData{
 		OrderID:   string(order.ID),
 		OldStatus: string(domain.OrderStatusCreated), // Could be any previous status
 		NewStatus: string(domain.OrderStatusCancelled),
 		UpdatedBy: "order-service",
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
 
 	event := events.NewDomainEvent(events.OrderCancelledEvent, string(order.ID), eventData).
 		WithMetadata("service", "order-service").

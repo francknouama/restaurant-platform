@@ -22,6 +22,9 @@ type (
 	ReservationEntity struct{}
 )
 
+// Implement EntityMarker interface
+func (ReservationEntity) IsEntity() {}
+
 // Type-safe ID types using generics
 type (
 	ReservationID = types.ID[ReservationEntity]
@@ -44,16 +47,16 @@ type Reservation struct {
 func NewReservation(customerID, tableID string, dateTime time.Time, partySize int) (*Reservation, error) {
 	// Basic validation
 	if customerID == "" {
-		return nil, errors.NewValidationError("customer_id", "customer ID is required")
+		return nil, errors.WrapValidation("NewReservation", "customer_id", "customer ID is required", nil)
 	}
 	if tableID == "" {
-		return nil, errors.NewValidationError("table_id", "table ID is required")
+		return nil, errors.WrapValidation("NewReservation", "table_id", "table ID is required", nil)
 	}
 	if dateTime.Before(time.Now()) {
-		return nil, errors.NewValidationError("date_time", "reservation date must be in the future")
+		return nil, errors.WrapValidation("NewReservation", "date_time", "reservation date must be in the future", nil)
 	}
 	if partySize <= 0 {
-		return nil, errors.NewValidationError("party_size", "party size must be positive")
+		return nil, errors.WrapValidation("NewReservation", "party_size", "party size must be positive", nil)
 	}
 
 	now := time.Now()
@@ -72,7 +75,7 @@ func NewReservation(customerID, tableID string, dateTime time.Time, partySize in
 // Confirm changes the reservation status to confirmed
 func (r *Reservation) Confirm() error {
 	if r.Status == StatusCancelled {
-		return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "cannot confirm a cancelled reservation")
+		return errors.WrapConflict("Confirm", "reservation", "cannot confirm a cancelled reservation", nil)
 	}
 	r.Status = StatusConfirmed
 	r.UpdatedAt = time.Now()
@@ -82,7 +85,7 @@ func (r *Reservation) Confirm() error {
 // Cancel changes the reservation status to cancelled
 func (r *Reservation) Cancel() error {
 	if r.Status == StatusCompleted {
-		return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "cannot cancel a completed reservation")
+		return errors.WrapConflict("Cancel", "reservation", "cannot cancel a completed reservation", nil)
 	}
 	r.Status = StatusCancelled
 	r.UpdatedAt = time.Now()
@@ -92,7 +95,7 @@ func (r *Reservation) Cancel() error {
 // Complete changes the reservation status to completed
 func (r *Reservation) Complete() error {
 	if r.Status != StatusConfirmed {
-		return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "only confirmed reservations can be completed")
+		return errors.WrapConflict("Complete", "reservation", "only confirmed reservations can be completed", nil)
 	}
 	r.Status = StatusCompleted
 	r.UpdatedAt = time.Now()
@@ -102,7 +105,7 @@ func (r *Reservation) Complete() error {
 // MarkNoShow changes the reservation status to no show
 func (r *Reservation) MarkNoShow() error {
 	if r.Status != StatusConfirmed && r.Status != StatusPending {
-		return errors.NewBusinessError("INVALID_STATUS_TRANSITION", "only confirmed or pending reservations can be marked as no show")
+		return errors.WrapConflict("MarkNoShow", "reservation", "only confirmed or pending reservations can be marked as no show", nil)
 	}
 	r.Status = StatusNoShow
 	r.UpdatedAt = time.Now()
@@ -112,7 +115,7 @@ func (r *Reservation) MarkNoShow() error {
 // UpdatePartySize updates the party size if it's valid
 func (r *Reservation) UpdatePartySize(size int) error {
 	if size <= 0 {
-		return errors.NewValidationError("party_size", "party size must be positive")
+		return errors.WrapValidation("UpdatePartySize", "party_size", "party size must be positive", nil)
 	}
 	r.PartySize = size
 	r.UpdatedAt = time.Now()
@@ -122,7 +125,7 @@ func (r *Reservation) UpdatePartySize(size int) error {
 // UpdateTable changes the assigned table
 func (r *Reservation) UpdateTable(tableID string) error {
 	if tableID == "" {
-		return errors.NewValidationError("table_id", "table ID is required")
+		return errors.WrapValidation("UpdateTable", "table_id", "table ID is required", nil)
 	}
 	r.TableID = tableID
 	r.UpdatedAt = time.Now()
@@ -132,7 +135,7 @@ func (r *Reservation) UpdateTable(tableID string) error {
 // UpdateDateTime changes the reservation date and time
 func (r *Reservation) UpdateDateTime(dateTime time.Time) error {
 	if dateTime.Before(time.Now()) {
-		return errors.NewValidationError("date_time", "reservation date must be in the future")
+		return errors.WrapValidation("UpdateDateTime", "date_time", "reservation date must be in the future", nil)
 	}
 	r.DateTime = dateTime
 	r.UpdatedAt = time.Now()

@@ -22,7 +22,7 @@ func main() {
 	cfg := config.Load()
 
 	// Setup database
-	db, err := infrastructure.NewConnection(&cfg.Database)
+	db, err := infrastructure.NewDatabase(cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -37,7 +37,7 @@ func main() {
 	defer eventPublisher.Close()
 
 	// Initialize repositories
-	kitchenRepo := infrastructure.NewKitchenRepository(db)
+	kitchenRepo := infrastructure.NewKitchenOrderRepository(db.Connection)
 
 	// Initialize services
 	kitchenService := application.NewKitchenOrderService(kitchenRepo, eventPublisher)

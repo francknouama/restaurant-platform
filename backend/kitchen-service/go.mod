@@ -1,6 +1,6 @@
 module github.com/restaurant-platform/kitchen-service
 
-go 1.24.4
+go 1.22.0
 
 require (
 	github.com/gin-contrib/cors v1.4.0

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"time"
 
 	"github.com/restaurant-platform/kitchen-service/internal/domain"
 	"github.com/restaurant-platform/shared/events"

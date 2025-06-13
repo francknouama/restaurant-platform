@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"kitchen-service/internal/domain"
-	"restaurant-platform/shared/pkg/errors"
+	"github.com/restaurant-platform/kitchen-service/internal/domain"
+	"github.com/restaurant-platform/shared/pkg/errors"
 )
 
 // KitchenOrderRepository implements the domain repository interface
@@ -138,7 +138,7 @@ func (r *KitchenOrderRepository) Update(ctx context.Context, order *domain.Kitch
 	}
 
 	if rowsAffected == 0 {
-		return errors.WrapBusinessError("KITCHEN_ORDER_NOT_FOUND", "kitchen order not found", errors.ErrNotFound)
+		return errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
 	}
 
 	return nil
@@ -159,7 +159,7 @@ func (r *KitchenOrderRepository) Delete(ctx context.Context, id domain.KitchenOr
 	}
 
 	if rowsAffected == 0 {
-		return errors.WrapBusinessError("KITCHEN_ORDER_NOT_FOUND", "kitchen order not found", errors.ErrNotFound)
+		return errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
 	}
 
 	return nil
@@ -394,7 +394,7 @@ func (r *KitchenOrderRepository) scanKitchenOrder(row *sql.Row) (*domain.Kitchen
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.WrapBusinessError("KITCHEN_ORDER_NOT_FOUND", "kitchen order not found", errors.ErrNotFound)
+			return nil, errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to scan kitchen order: %w", err)
 	}

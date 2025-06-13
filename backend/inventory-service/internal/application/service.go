@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"log"
+
 	inventory "github.com/restaurant-platform/inventory-service/internal/domain"
 	"github.com/restaurant-platform/shared/events"
 	"github.com/restaurant-platform/shared/pkg/errors"
@@ -35,7 +36,7 @@ func (s *InventoryService) CreateItem(ctx context.Context, sku, name string, ini
 	}
 
 	// Publish inventory item created event
-	eventData := events.ToEventData(events.InventoryItemCreatedData{
+	eventData, err := events.ToEventData(events.InventoryItemCreatedData{
 		ItemID:       item.ID.String(),
 		SKU:          item.SKU,
 		Name:         item.Name,
@@ -44,6 +45,11 @@ func (s *InventoryService) CreateItem(ctx context.Context, sku, name string, ini
 		Unit:         string(item.Unit),
 		Cost:         item.Cost,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return nil, err
+	}
 
 	event := events.NewDomainEvent(events.InventoryItemCreatedEvent, item.ID.String(), eventData).
 		WithMetadata("service", "inventory-service").
@@ -84,7 +90,7 @@ func (s *InventoryService) AddStock(ctx context.Context, itemID inventory.Invent
 	}
 
 	// Publish stock received event
-	eventData := events.ToEventData(events.StockMovementData{
+	eventData, err := events.ToEventData(events.StockMovementData{
 		ItemID:        item.ID.String(),
 		SKU:           item.SKU,
 		ItemName:      item.Name,
@@ -95,6 +101,11 @@ func (s *InventoryService) AddStock(ctx context.Context, itemID inventory.Invent
 		Reference:     reference,
 		PerformedBy:   performedBy,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
 
 	event := events.NewDomainEvent(events.StockReceivedEvent, item.ID.String(), eventData).
 		WithMetadata("service", "inventory-service").
@@ -126,7 +137,7 @@ func (s *InventoryService) UseStock(ctx context.Context, itemID inventory.Invent
 	}
 
 	// Publish stock used event
-	eventData := events.ToEventData(events.StockMovementData{
+	eventData, err := events.ToEventData(events.StockMovementData{
 		ItemID:        item.ID.String(),
 		SKU:           item.SKU,
 		ItemName:      item.Name,
@@ -137,6 +148,11 @@ func (s *InventoryService) UseStock(ctx context.Context, itemID inventory.Invent
 		Reference:     reference,
 		PerformedBy:   performedBy,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
 
 	event := events.NewDomainEvent(events.StockUsedEvent, item.ID.String(), eventData).
 		WithMetadata("service", "inventory-service").
@@ -162,7 +178,7 @@ func (s *InventoryService) ReserveStock(ctx context.Context, sku string, quantit
 	if !item.CanFulfillOrder(quantity) {
 		// Publish out of stock alert
 		s.publishOutOfStockAlert(ctx, item, quantity)
-		return errors.NewBusinessError("INSUFFICIENT_STOCK", "insufficient stock to reserve")
+		return errors.ErrInsufficientStock
 	}
 
 	movement, err := item.ReserveStock(quantity, reference, performedBy)
@@ -176,7 +192,7 @@ func (s *InventoryService) ReserveStock(ctx context.Context, sku string, quantit
 	}
 
 	// Publish stock reserved event
-	eventData := events.ToEventData(events.StockMovementData{
+	eventData, err := events.ToEventData(events.StockMovementData{
 		ItemID:        item.ID.String(),
 		SKU:           item.SKU,
 		ItemName:      item.Name,
@@ -187,6 +203,11 @@ func (s *InventoryService) ReserveStock(ctx context.Context, sku string, quantit
 		Reference:     reference,
 		PerformedBy:   performedBy,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
 
 	event := events.NewDomainEvent(events.StockReservedEvent, item.ID.String(), eventData).
 		WithMetadata("service", "inventory-service").
@@ -257,7 +278,7 @@ func (s *InventoryService) CreateSupplier(ctx context.Context, name string) (*in
 	}
 
 	// Publish supplier created event
-	eventData := events.ToEventData(events.SupplierEventData{
+	eventData, err := events.ToEventData(events.SupplierEventData{
 		SupplierID:  supplier.ID.String(),
 		Name:        supplier.Name,
 		ContactName: supplier.ContactName,
@@ -265,6 +286,11 @@ func (s *InventoryService) CreateSupplier(ctx context.Context, name string) (*in
 		Phone:       supplier.Phone,
 		IsActive:    supplier.IsActive,
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return nil, err
+	}
 
 	event := events.NewDomainEvent(events.SupplierCreatedEvent, supplier.ID.String(), eventData).
 		WithMetadata("service", "inventory-service")
@@ -289,7 +315,7 @@ func (s *InventoryService) checkAndPublishStockAlerts(ctx context.Context, item 
 
 // Helper function to publish low stock alert
 func (s *InventoryService) publishLowStockAlert(ctx context.Context, item *inventory.InventoryItem) {
-	eventData := events.ToEventData(events.StockAlertData{
+	eventData, err := events.ToEventData(events.StockAlertData{
 		ItemID:       item.ID.String(),
 		SKU:          item.SKU,
 		ItemName:     item.Name,
@@ -297,6 +323,11 @@ func (s *InventoryService) publishLowStockAlert(ctx context.Context, item *inven
 		Threshold:    item.ReorderPoint,
 		AlertType:    "LOW_STOCK",
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return
+	}
 
 	event := events.NewDomainEvent(events.LowStockAlertEvent, item.ID.String(), eventData).
 		WithMetadata("service", "inventory-service").
@@ -310,7 +341,7 @@ func (s *InventoryService) publishLowStockAlert(ctx context.Context, item *inven
 
 // Helper function to publish out of stock alert
 func (s *InventoryService) publishOutOfStockAlert(ctx context.Context, item *inventory.InventoryItem, requestedQuantity float64) {
-	eventData := events.ToEventData(events.StockAlertData{
+	eventData, err := events.ToEventData(events.StockAlertData{
 		ItemID:       item.ID.String(),
 		SKU:          item.SKU,
 		ItemName:     item.Name,
@@ -318,6 +349,11 @@ func (s *InventoryService) publishOutOfStockAlert(ctx context.Context, item *inv
 		Threshold:    requestedQuantity,
 		AlertType:    "OUT_OF_STOCK",
 	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return
+	}
 
 	event := events.NewDomainEvent(events.OutOfStockAlertEvent, item.ID.String(), eventData).
 		WithMetadata("service", "inventory-service").
