@@ -36,6 +36,7 @@ func SetupRouter(menuService *application.MenuService) *gin.Engine {
 		// Menu routes
 		menus := v1.Group("/menus")
 		{
+			menus.GET("", menuHandler.GetMenus)
 			menus.POST("", menuHandler.CreateMenu)
 			menus.GET("/active", menuHandler.GetActiveMenu)
 			menus.GET("/:id", menuHandler.GetMenu)
@@ -51,6 +52,102 @@ func SetupRouter(menuService *application.MenuService) *gin.Engine {
 		{
 			items.GET("/available", menuHandler.GetAvailableItems)
 			items.GET("/:id", menuHandler.GetMenuItem)
+		}
+
+		// Development stub endpoints for missing services
+		// Orders stub
+		orders := v1.Group("/orders")
+		{
+			orders.GET("", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": gin.H{
+						"items": []interface{}{},
+						"total": 0,
+						"page": 1,
+						"limit": 20,
+						"hasNext": false,
+						"hasPrev": false,
+					},
+					"message": "Development stub - no orders data available",
+				})
+			})
+		}
+
+		// Kitchen stub
+		kitchen := v1.Group("/kitchen")
+		{
+			kitchen.GET("/orders", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": []interface{}{},
+					"message": "Development stub - no kitchen orders available",
+				})
+			})
+			kitchen.GET("/metrics", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": gin.H{
+						"totalOrders": 0,
+						"completedOrders": 0,
+						"pendingOrders": 0,
+						"averagePrepTime": 0,
+					},
+					"message": "Development stub - no kitchen metrics available",
+				})
+			})
+			kitchen.GET("/stations", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": []interface{}{},
+					"message": "Development stub - no kitchen stations available",
+				})
+			})
+		}
+
+		// Reservations stub
+		reservations := v1.Group("/reservations")
+		{
+			reservations.GET("", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": gin.H{
+						"items": []interface{}{},
+						"total": 0,
+						"page": 1,
+						"limit": 20,
+						"hasNext": false,
+						"hasPrev": false,
+					},
+					"message": "Development stub - no reservations data available",
+				})
+			})
+			reservations.GET("/waitlist", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": []interface{}{},
+					"message": "Development stub - no waitlist data available",
+				})
+			})
+			reservations.GET("/metrics", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": gin.H{
+						"totalReservations": 0,
+						"todayReservations": 0,
+						"confirmedReservations": 0,
+						"walkIns": 0,
+					},
+					"message": "Development stub - no reservation metrics available",
+				})
+			})
+			reservations.GET("/date/:date", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data": []interface{}{},
+					"message": "Development stub - no reservations for date available",
+				})
+			})
 		}
 	}
 

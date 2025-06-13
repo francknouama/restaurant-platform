@@ -62,6 +62,10 @@ func (s *MenuService) GetMenuByID(ctx context.Context, id string) (*menu.Menu, e
 	return s.menuRepo.GetByID(ctx, menu.MenuID(id))
 }
 
+func (s *MenuService) GetMenus(ctx context.Context, offset, limit int) ([]*menu.Menu, int, error) {
+	return s.menuRepo.List(ctx, offset, limit)
+}
+
 func (s *MenuService) GetAvailableItems(ctx context.Context) ([]*menu.MenuItem, error) {
 	return s.menuRepo.GetAvailableItems(ctx)
 }

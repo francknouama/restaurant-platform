@@ -44,6 +44,37 @@ func (h *MenuHandler) GetActiveMenu(c *gin.Context) {
 	handleOK(c, application.MenuToResponse(menu))
 }
 
+func (h *MenuHandler) GetMenus(c *gin.Context) {
+	// Parse pagination parameters with defaults
+	offset := 0
+	limit := 20
+
+	menus, total, err := h.menuService.GetMenus(c.Request.Context(), offset, limit)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	var menuResponses []*application.MenuResponse
+	for _, menu := range menus {
+		menuResponses = append(menuResponses, application.MenuToResponse(menu))
+	}
+
+	response := gin.H{
+		"success": true,
+		"data": gin.H{
+			"items":   menuResponses,
+			"total":   total,
+			"page":    1,
+			"limit":   limit,
+			"hasNext": (offset + limit) < total,
+			"hasPrev": offset > 0,
+		},
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *MenuHandler) GetMenu(c *gin.Context) {
 	id := c.Param("id")
 	menu, err := h.menuService.GetMenuByID(c.Request.Context(), id)
