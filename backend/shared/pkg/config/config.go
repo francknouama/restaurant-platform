@@ -10,6 +10,7 @@ type Config struct {
 	Server   ServerConfig   `json:"server"`
 	Database DatabaseConfig `json:"database"`
 	Redis    RedisConfig    `json:"redis"`
+	JWT      JWTConfig      `json:"jwt"`
 }
 
 // ServerConfig holds server configuration
@@ -35,6 +36,13 @@ type RedisConfig struct {
 	DB       int    `json:"db"`
 }
 
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	SecretKey               string `json:"secret_key"`
+	ExpirationMinutes       int    `json:"expiration_minutes"`
+	RefreshExpirationHours  int    `json:"refresh_expiration_hours"`
+}
+
 // Load creates a new configuration from environment variables with defaults
 func Load() *Config {
 	return &Config{
@@ -54,6 +62,11 @@ func Load() *Config {
 			Port:     getEnv("REDIS_PORT", "6379"),
 			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getEnvAsInt("REDIS_DB", 0),
+		},
+		JWT: JWTConfig{
+			SecretKey:              getEnv("JWT_SECRET_KEY", "restaurant-platform-secret-key-change-in-production"),
+			ExpirationMinutes:      getEnvAsInt("JWT_EXPIRATION_MINUTES", 60),        // 1 hour
+			RefreshExpirationHours: getEnvAsInt("JWT_REFRESH_EXPIRATION_HOURS", 168), // 7 days
 		},
 	}
 }

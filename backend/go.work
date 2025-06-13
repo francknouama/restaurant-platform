@@ -7,4 +7,5 @@ use (
 	./order-service
 	./reservation-service
 	./shared
+	./user-service
 )
