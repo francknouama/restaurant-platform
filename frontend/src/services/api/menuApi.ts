@@ -9,23 +9,34 @@ import {
   UpdateMenuItemRequest,
   ApiResponse,
   PaginatedResponse,
-  idToString
+  idToString,
+  stringToID
 } from '../../types';
+
+// Helper function to transform API response to frontend format
+const transformMenuFromApi = (apiMenu: any): Menu => ({
+  ...apiMenu,
+  id: stringToID<'Menu'>(apiMenu.id)
+});
 
 // Menu API service matching Go backend endpoints
 export const menuApi = {
   // Menu CRUD operations
   getMenus: (): Promise<Menu[]> =>
-    authenticatedRequest(() => apiClient.get<ApiResponse<Menu[]>>('/menus')),
+    authenticatedRequest(() => apiClient.get<ApiResponse<PaginatedResponse<any>>>('/menus'))
+      .then(response => response.items.map(transformMenuFromApi)),
 
   getMenu: (id: MenuID): Promise<Menu> =>
-    authenticatedRequest(() => apiClient.get<ApiResponse<Menu>>(`/menus/${idToString(id)}`)),
+    authenticatedRequest(() => apiClient.get<ApiResponse<any>>(`/menus/${idToString(id)}`))
+      .then(transformMenuFromApi),
 
   getActiveMenu: (): Promise<Menu> =>
-    authenticatedRequest(() => apiClient.get<ApiResponse<Menu>>('/menus/active')),
+    authenticatedRequest(() => apiClient.get<ApiResponse<any>>('/menus/active'))
+      .then(transformMenuFromApi),
 
   createMenu: (data: CreateMenuRequest): Promise<Menu> =>
-    authenticatedRequest(() => apiClient.post<ApiResponse<Menu>>('/menus', data)),
+    authenticatedRequest(() => apiClient.post<ApiResponse<any>>('/menus', data))
+      .then(transformMenuFromApi),
 
   updateMenu: (id: MenuID, data: UpdateMenuRequest): Promise<Menu> =>
     authenticatedRequest(() => 

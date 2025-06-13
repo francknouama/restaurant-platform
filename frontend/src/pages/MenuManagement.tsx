@@ -5,7 +5,6 @@ import { MenuID } from '../types';
 import MenuList from '../components/menu/MenuList';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 // Menu Management main page
 const MenuManagementMain: React.FC = () => {
@@ -13,14 +12,14 @@ const MenuManagementMain: React.FC = () => {
   const activateMenu = useActivateMenu();
   const cloneMenu = useCloneMenu();
   
-  const [loadingMenuId, setLoadingMenuId] = useState<string | null>(null);
+  const [loadingMenuId, setLoadingMenuId] = useState<string | undefined>(undefined);
 
   const handleActivateMenu = async (menuId: MenuID) => {
     setLoadingMenuId(menuId.value);
     try {
       await activateMenu.mutateAsync(menuId);
     } finally {
-      setLoadingMenuId(null);
+      setLoadingMenuId(undefined);
     }
   };
 
@@ -29,7 +28,7 @@ const MenuManagementMain: React.FC = () => {
     try {
       await cloneMenu.mutateAsync({ id: menuId });
     } finally {
-      setLoadingMenuId(null);
+      setLoadingMenuId(undefined);
     }
   };
 

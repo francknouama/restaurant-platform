@@ -9,7 +9,6 @@ import {
   useMarkNoShow,
   useCompleteReservation,
   useWaitlist,
-  useAddToWaitlist,
   useRemoveFromWaitlist,
   useNotifyWaitlistCustomer
 } from '../hooks/useReservations';

@@ -8,7 +8,7 @@ import {
   TableAvailability
 } from '../../types';
 import { ApiResponse, PaginatedResponse } from '../../types/common';
-import { apiClient } from '../apiClient';
+import { apiClient, authenticatedRequest } from '../apiClient';
 
 export const reservationApi = {
   // Reservation CRUD Operations
@@ -31,74 +31,86 @@ export const reservationApi = {
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
 
-    const response = await apiClient.get<PaginatedResponse<Reservation>>(
-      `/reservations?${params.toString()}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<PaginatedResponse<Reservation>>>(
+        `/reservations?${params.toString()}`
+      )
     );
-    return response.data;
   },
 
   async getReservation(id: ReservationID): Promise<Reservation> {
-    const response = await apiClient.get<ApiResponse<Reservation>>(`/reservations/${id.value}`);
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<Reservation>>(`/reservations/${id.value}`)
+    );
   },
 
   async createReservation(data: CreateReservationRequest): Promise<Reservation> {
-    const response = await apiClient.post<ApiResponse<Reservation>>('/reservations', data);
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<Reservation>>('/reservations', data)
+    );
   },
 
   async updateReservation(id: ReservationID, data: UpdateReservationRequest): Promise<Reservation> {
-    const response = await apiClient.put<ApiResponse<Reservation>>(`/reservations/${id.value}`, data);
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.put<ApiResponse<Reservation>>(`/reservations/${id.value}`, data)
+    );
   },
 
   async deleteReservation(id: ReservationID): Promise<void> {
-    await apiClient.delete(`/reservations/${id.value}`);
+    return authenticatedRequest(() => 
+      apiClient.delete(`/reservations/${id.value}`)
+    );
   },
 
   // Reservation Status Management
   async updateReservationStatus(id: ReservationID, status: ReservationStatus): Promise<Reservation> {
-    const response = await apiClient.patch<ApiResponse<Reservation>>(
-      `/reservations/${id.value}/status`, 
-      { status }
+    return authenticatedRequest(() => 
+      apiClient.patch<ApiResponse<Reservation>>(
+        `/reservations/${id.value}/status`, 
+        { status }
+      )
     );
-    return response.data.data!;
   },
 
   async confirmReservation(id: ReservationID): Promise<Reservation> {
-    const response = await apiClient.post<ApiResponse<Reservation>>(
-      `/reservations/${id.value}/confirm`
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<Reservation>>(
+        `/reservations/${id.value}/confirm`
+      )
     );
-    return response.data.data!;
   },
 
   async cancelReservation(id: ReservationID, reason?: string): Promise<Reservation> {
-    const response = await apiClient.post<ApiResponse<Reservation>>(
-      `/reservations/${id.value}/cancel`,
-      { reason }
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<Reservation>>(
+        `/reservations/${id.value}/cancel`,
+        { reason }
+      )
     );
-    return response.data.data!;
   },
 
   async checkInReservation(id: ReservationID): Promise<Reservation> {
-    const response = await apiClient.post<ApiResponse<Reservation>>(
-      `/reservations/${id.value}/checkin`
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<Reservation>>(
+        `/reservations/${id.value}/checkin`
+      )
     );
-    return response.data.data!;
   },
 
   async markNoShow(id: ReservationID): Promise<Reservation> {
-    const response = await apiClient.post<ApiResponse<Reservation>>(
-      `/reservations/${id.value}/no-show`
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<Reservation>>(
+        `/reservations/${id.value}/no-show`
+      )
     );
-    return response.data.data!;
   },
 
   async completeReservation(id: ReservationID): Promise<Reservation> {
-    const response = await apiClient.post<ApiResponse<Reservation>>(
-      `/reservations/${id.value}/complete`
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<Reservation>>(
+        `/reservations/${id.value}/complete`
+      )
     );
-    return response.data.data!;
   },
 
   // Table Availability
@@ -115,23 +127,26 @@ export const reservationApi = {
       ...(duration && { duration: duration.toString() })
     });
 
-    const response = await apiClient.get<ApiResponse<TableAvailability[]>>(
-      `/reservations/availability?${params.toString()}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<TableAvailability[]>>(
+        `/reservations/availability?${params.toString()}`
+      )
     );
-    return response.data.data!;
   },
 
   async getTableAvailabilityForDay(date: string): Promise<TableAvailability[]> {
-    const response = await apiClient.get<ApiResponse<TableAvailability[]>>(
-      `/reservations/availability/day/${date}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<TableAvailability[]>>(
+        `/reservations/availability/day/${date}`
+      )
     );
-    return response.data.data!;
   },
 
   // Table Management
   async getTables(): Promise<string[]> {
-    const response = await apiClient.get<ApiResponse<string[]>>('/tables');
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<string[]>>('/tables')
+    );
   },
 
   async getTableInfo(tableId: string): Promise<{
@@ -140,39 +155,44 @@ export const reservationApi = {
     isAvailable: boolean;
     currentReservation?: Reservation;
   }> {
-    const response = await apiClient.get<ApiResponse<any>>(`/tables/${tableId}`);
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<any>>(`/tables/${tableId}`)
+    );
   },
 
   // Reservation Search and Filters
   async searchReservations(query: string): Promise<Reservation[]> {
-    const response = await apiClient.get<ApiResponse<Reservation[]>>(
-      `/reservations/search?q=${encodeURIComponent(query)}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<Reservation[]>>(
+        `/reservations/search?q=${encodeURIComponent(query)}`
+      )
     );
-    return response.data.data!;
   },
 
   async getReservationsByCustomer(customerName: string): Promise<Reservation[]> {
-    const response = await apiClient.get<ApiResponse<Reservation[]>>(
-      `/reservations/customer/${encodeURIComponent(customerName)}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<Reservation[]>>(
+        `/reservations/customer/${encodeURIComponent(customerName)}`
+      )
     );
-    return response.data.data!;
   },
 
   async getReservationsByTable(tableId: string, date?: string): Promise<Reservation[]> {
     const params = date ? `?date=${date}` : '';
-    const response = await apiClient.get<ApiResponse<Reservation[]>>(
-      `/reservations/table/${tableId}${params}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<Reservation[]>>(
+        `/reservations/table/${tableId}${params}`
+      )
     );
-    return response.data.data!;
   },
 
   async getTodaysReservations(): Promise<Reservation[]> {
     const today = new Date().toISOString().split('T')[0];
-    const response = await apiClient.get<ApiResponse<Reservation[]>>(
-      `/reservations/date/${today}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<Reservation[]>>(
+        `/reservations/date/${today}`
+      )
     );
-    return response.data.data!;
   },
 
   // Bulk Operations
@@ -183,11 +203,12 @@ export const reservationApi = {
     success: Reservation[];
     failed: { id: string; error: string }[];
   }> {
-    const response = await apiClient.post<ApiResponse<any>>('/reservations/bulk/status', {
-      reservation_ids: reservationIds.map(id => id.value),
-      status
-    });
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<any>>('/reservations/bulk/status', {
+        reservation_ids: reservationIds.map(id => id.value),
+        status
+      })
+    );
   },
 
   async bulkCancel(
@@ -197,11 +218,12 @@ export const reservationApi = {
     success: Reservation[];
     failed: { id: string; error: string }[];
   }> {
-    const response = await apiClient.post<ApiResponse<any>>('/reservations/bulk/cancel', {
-      reservation_ids: reservationIds.map(id => id.value),
-      reason
-    });
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<any>>('/reservations/bulk/cancel', {
+        reservation_ids: reservationIds.map(id => id.value),
+        reason
+      })
+    );
   },
 
   // Reservation Analytics
@@ -218,10 +240,11 @@ export const reservationApi = {
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
 
-    const response = await apiClient.get<ApiResponse<any>>(
-      `/reservations/metrics?${params.toString()}`
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<any>>(
+        `/reservations/metrics?${params.toString()}`
+      )
     );
-    return response.data.data!;
   },
 
   // Waitlist Management
@@ -233,8 +256,9 @@ export const reservationApi = {
     preferredTime?: string;
     notes?: string;
   }): Promise<{ id: string; estimatedWaitTime: number; position: number }> {
-    const response = await apiClient.post<ApiResponse<any>>('/reservations/waitlist', data);
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.post<ApiResponse<any>>('/reservations/waitlist', data)
+    );
   },
 
   async getWaitlist(): Promise<Array<{
@@ -245,15 +269,20 @@ export const reservationApi = {
     position: number;
     createdAt: string;
   }>> {
-    const response = await apiClient.get<ApiResponse<any>>('/reservations/waitlist');
-    return response.data.data!;
+    return authenticatedRequest(() => 
+      apiClient.get<ApiResponse<any>>('/reservations/waitlist')
+    );
   },
 
   async notifyWaitlistCustomer(waitlistId: string): Promise<void> {
-    await apiClient.post(`/reservations/waitlist/${waitlistId}/notify`);
+    return authenticatedRequest(() => 
+      apiClient.post(`/reservations/waitlist/${waitlistId}/notify`)
+    );
   },
 
   async removeFromWaitlist(waitlistId: string): Promise<void> {
-    await apiClient.delete(`/reservations/waitlist/${waitlistId}`);
+    return authenticatedRequest(() => 
+      apiClient.delete(`/reservations/waitlist/${waitlistId}`)
+    );
   }
 };

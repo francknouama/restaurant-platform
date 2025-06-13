@@ -27,8 +27,8 @@ const MenuList: React.FC<MenuListProps> = ({
 }) => {
   // Sort menus: active first, then by version descending
   const sortedMenus = [...menus].sort((a, b) => {
-    if (a.isActive && !b.isActive) return -1;
-    if (!a.isActive && b.isActive) return 1;
+    if (a.is_active && !b.is_active) return -1;
+    if (!a.is_active && b.is_active) return 1;
     return b.version - a.version;
   });
 
@@ -75,7 +75,7 @@ const MenuList: React.FC<MenuListProps> = ({
       </div>
 
       {/* Active Menu Section */}
-      {sortedMenus.some(menu => menu.isActive) && (
+      {sortedMenus.some(menu => menu.is_active) && (
         <div>
           <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center">
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
@@ -83,7 +83,7 @@ const MenuList: React.FC<MenuListProps> = ({
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {sortedMenus
-              .filter(menu => menu.isActive)
+              .filter(menu => menu.is_active)
               .map((menu) => (
                 <MenuCard
                   key={menu.id.value}
@@ -100,7 +100,7 @@ const MenuList: React.FC<MenuListProps> = ({
       )}
 
       {/* Inactive Menus Section */}
-      {sortedMenus.some(menu => !menu.isActive) && (
+      {sortedMenus.some(menu => !menu.is_active) && (
         <div>
           <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center">
             <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
@@ -108,7 +108,7 @@ const MenuList: React.FC<MenuListProps> = ({
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {sortedMenus
-              .filter(menu => !menu.isActive)
+              .filter(menu => !menu.is_active)
               .map((menu) => (
                 <MenuCard
                   key={menu.id.value}
@@ -132,7 +132,7 @@ const MenuList: React.FC<MenuListProps> = ({
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-green-600">
-            {menus.filter(m => m.isActive).length}
+            {menus.filter(m => m.is_active).length}
           </div>
           <div className="text-sm text-gray-600">Active</div>
         </div>

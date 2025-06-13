@@ -35,6 +35,7 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   errors?: Record<string, string[]>;
+  details?: any;
   timestamp?: string;
   request_id?: string;
 }

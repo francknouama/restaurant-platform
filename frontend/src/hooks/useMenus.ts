@@ -105,7 +105,7 @@ export const useActivateMenu = () => {
   
   return useMutation({
     mutationFn: (id: MenuID) => menuApi.activateMenu(id),
-    onSuccess: (_, menuId) => {
+    onSuccess: () => {
       // Invalidate all menu-related queries since activation affects multiple menus
       queryClient.invalidateQueries(MENU_QUERY_KEYS.all);
       

@@ -7,9 +7,9 @@ export interface Menu extends Timestamps {
   name: string;
   version: number;
   categories: MenuCategory[];
-  isActive: boolean;
-  startDate: string;
-  endDate?: string;
+  is_active: boolean;
+  start_date: string;
+  end_date?: string;
 }
 
 export interface MenuCategory {

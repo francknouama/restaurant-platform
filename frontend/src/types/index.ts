@@ -3,62 +3,52 @@
 // Common types
 export * from './common';
 
-// Domain types
+// Domain types - explicit exports to avoid conflicts
 export * from './domains/menu';
-export * from './domains/order';
 export * from './domains/kitchen';
-export * from './domains/reservation';
 export * from './domains/inventory';
 
-// Re-export commonly used types for convenience
-export type {
-  ApiResponse,
-  PaginatedResponse,
-  ApiError,
-  Timestamps
-} from './common';
-
-export type {
-  Menu,
-  MenuItem,
-  MenuCategory,
-  CreateMenuRequest,
-  UpdateMenuRequest
-} from './domains/menu';
-
+// Order domain - excluding isValidStatusTransition to avoid conflicts
 export type {
   Order,
   OrderItem,
   OrderType,
   OrderStatus,
   CreateOrderRequest,
-  OrderFilters
+  UpdateOrderRequest,
+  OrderFilters,
+  OrderValidationError,
+  ORDER_STATUS_TRANSITIONS,
+  ORDER_CONSTANTS
 } from './domains/order';
 
-export type {
-  KitchenOrder,
-  KitchenItem,
-  KitchenOrderStatus,
-  KitchenPriority,
-  KitchenMetrics
-} from './domains/kitchen';
+// Order functions with aliases to avoid conflicts
+export { 
+  calculateOrderTotal,
+  calculateTaxAmount, 
+  calculateItemTotal,
+  isValidStatusTransition as isValidOrderStatusTransition 
+} from './domains/order';
 
+// Reservation domain - excluding isValidStatusTransition to avoid conflicts
 export type {
   Reservation,
   ReservationStatus,
   CreateReservationRequest,
-  TableAvailability
+  UpdateReservationRequest,
+  ReservationFilters,
+  Table,
+  TableAvailability,
+  TableLayout,
+  WaitlistEntry,
+  RESERVATION_STATUS_TRANSITIONS,
+  RESERVATION_CONSTANTS
 } from './domains/reservation';
 
-export type {
-  InventoryItem,
-  StockMovement,
-  Supplier,
-  MovementType,
-  UnitType,
-  InventoryStatus
-} from './domains/inventory';
-
-// Avoid name conflicts by aliasing
-export { isValidStatusTransition as isValidOrderStatusTransition } from './domains/order';
-export { isValidStatusTransition as isValidReservationStatusTransition } from './domains/reservation';
+// Reservation functions with aliases to avoid conflicts
+export { 
+  isValidReservationTime,
+  calculateReservationEndTime,
+  getReservationDuration,
+  isValidStatusTransition as isValidReservationStatusTransition 
+} from './domains/reservation';

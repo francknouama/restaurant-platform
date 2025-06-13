@@ -64,6 +64,8 @@ const KitchenQueue: React.FC<KitchenQueueProps> = ({
       NEW: orders.filter(o => o.status === 'NEW').length,
       PREPARING: orders.filter(o => o.status === 'PREPARING').length,
       READY: orders.filter(o => o.status === 'READY').length,
+      COMPLETED: orders.filter(o => o.status === 'COMPLETED').length,
+      CANCELLED: orders.filter(o => o.status === 'CANCELLED').length,
     },
     byPriority: {
       URGENT: orders.filter(o => o.priority === 'URGENT').length,

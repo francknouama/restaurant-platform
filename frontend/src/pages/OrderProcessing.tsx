@@ -9,7 +9,7 @@ import Button from '../components/ui/Button';
 // Order Processing main page
 const OrderProcessingMain: React.FC = () => {
   const [filters, setFilters] = useState<OrderFilters>({});
-  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
+  const [loadingOrderId, setLoadingOrderId] = useState<string | undefined>(undefined);
 
   const { data: ordersData, isLoading, error } = useOrders(filters);
   const updateOrderStatus = useUpdateOrderStatus();
@@ -22,7 +22,7 @@ const OrderProcessingMain: React.FC = () => {
     try {
       await updateOrderStatus.mutateAsync({ id: orderId, status });
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -31,7 +31,7 @@ const OrderProcessingMain: React.FC = () => {
     try {
       await cancelOrder.mutateAsync({ id: orderId, reason: 'Cancelled by staff' });
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 

@@ -15,7 +15,7 @@ const RestaurantDashboard: React.FC = () => {
             <div className="text-2xl">📋</div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Active Menu</p>
-              <p className="text-2xl font-bold text-gray-900">Summer 2024</p>
+              <p className="text-2xl font-bold text-gray-900">Current Menu</p>
             </div>
           </div>
         </div>

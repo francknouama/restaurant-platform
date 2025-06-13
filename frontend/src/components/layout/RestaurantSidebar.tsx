@@ -58,7 +58,7 @@ const RestaurantSidebar: React.FC = () => {
         <div className="flex items-center">
           <div className="text-2xl">🍽️</div>
           <div className="ml-3">
-            <h1 className="text-xl font-bold text-gray-900">Restaurant</h1>
+            <h1 className="text-xl font-bold text-gray-900">RestaurantPro</h1>
             <p className="text-sm text-gray-600">Management Platform</p>
           </div>
         </div>
@@ -125,8 +125,8 @@ const RestaurantSidebar: React.FC = () => {
             <span className="text-white text-sm font-medium">A</span>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-gray-900">Admin User</p>
-            <p className="text-xs text-gray-600">Restaurant Manager</p>
+            <p className="text-sm font-medium text-gray-900">Restaurant Manager</p>
+            <p className="text-xs text-gray-600">Active Session</p>
           </div>
         </div>
       </div>

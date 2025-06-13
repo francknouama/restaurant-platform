@@ -4,7 +4,6 @@ import {
   KitchenOrderID,
   KitchenOrderStatus,
   KitchenPriority,
-  KitchenItemStatus,
   KitchenOrderFilters,
   KitchenMetrics,
   StationMetrics,

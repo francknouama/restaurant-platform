@@ -36,24 +36,24 @@ const MenuCard: React.FC<MenuCardProps> = ({
   };
 
   return (
-    <Card className={`transition-all duration-200 hover:shadow-lg ${menu.isActive ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}>
+    <Card className={`transition-all duration-200 hover:shadow-lg ${menu.is_active ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}>
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
             <h3 className="text-lg font-semibold text-gray-900">{menu.name}</h3>
-            <StatusBadge status={menu.isActive ? 'active' : 'inactive'}>
-              {menu.isActive ? 'Active' : 'Inactive'}
+            <StatusBadge status={menu.is_active ? 'active' : 'inactive'}>
+              {menu.is_active ? 'Active' : 'Inactive'}
             </StatusBadge>
           </div>
           
           <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
             <span>Version {menu.version}</span>
             <span>•</span>
-            <span>Since {formatDate(menu.startDate)}</span>
-            {menu.endDate && (
+            <span>Since {formatDate(menu.start_date)}</span>
+            {menu.end_date && (
               <>
                 <span>•</span>
-                <span>Until {formatDate(menu.endDate)}</span>
+                <span>Until {formatDate(menu.end_date)}</span>
               </>
             )}
           </div>
@@ -108,7 +108,7 @@ const MenuCard: React.FC<MenuCardProps> = ({
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
-        {!menu.isActive && onActivate && (
+        {!menu.is_active && onActivate && (
           <Button
             variant="primary"
             size="sm"
@@ -141,7 +141,7 @@ const MenuCard: React.FC<MenuCardProps> = ({
           </Button>
         )}
         
-        {onDelete && !menu.isActive && (
+        {onDelete && !menu.is_active && (
           <Button
             variant="danger"
             size="sm"
@@ -153,7 +153,7 @@ const MenuCard: React.FC<MenuCardProps> = ({
         )}
       </div>
       
-      {menu.isActive && (
+      {menu.is_active && (
         <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-md">
           <div className="flex items-center">
             <span className="text-green-600 text-sm">✓</span>

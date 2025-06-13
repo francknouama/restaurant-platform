@@ -20,7 +20,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const KitchenDashboard: React.FC = () => {
   const [selectedStation, setSelectedStation] = useState<string | undefined>(undefined);
-  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
+  const [loadingOrderId, setLoadingOrderId] = useState<string | undefined>(undefined);
 
   // Build filters based on selected station
   const filters: KitchenOrderFilters = selectedStation 
@@ -50,7 +50,7 @@ const KitchenDashboard: React.FC = () => {
     try {
       await startPreparation.mutateAsync(orderId);
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -59,7 +59,7 @@ const KitchenDashboard: React.FC = () => {
     try {
       await markReady.mutateAsync(orderId);
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -68,7 +68,7 @@ const KitchenDashboard: React.FC = () => {
     try {
       await completeOrder.mutateAsync(orderId);
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -77,7 +77,7 @@ const KitchenDashboard: React.FC = () => {
     try {
       await cancelOrder.mutateAsync({ id: orderId, reason: 'Cancelled from kitchen dashboard' });
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -86,7 +86,7 @@ const KitchenDashboard: React.FC = () => {
     try {
       await assignStation.mutateAsync({ id: orderId, station });
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -95,7 +95,7 @@ const KitchenDashboard: React.FC = () => {
     try {
       await updatePriority.mutateAsync({ id: orderId, priority });
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 
@@ -108,7 +108,7 @@ const KitchenDashboard: React.FC = () => {
         await completeItem.mutateAsync({ orderId, itemId });
       }
     } finally {
-      setLoadingOrderId(null);
+      setLoadingOrderId(undefined);
     }
   };
 

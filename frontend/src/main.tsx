@@ -6,6 +6,21 @@ import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
 import './index.css'
 
+// Suppress browser extension errors in development
+if (process.env.NODE_ENV === 'development') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' && 
+      args[0].includes('message channel closed before a response was received')
+    ) {
+      // Suppress this specific browser extension error
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
+
 // Create QueryClient with restaurant-specific configuration
 const queryClient = new QueryClient({
   defaultOptions: {
