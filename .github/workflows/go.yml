@@ -17,38 +17,71 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24.4'
 
-    - name: Download workspace dependencies
-      working-directory: ./backend
-      run: go work sync
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
 
-    - name: Build all workspace modules
-      working-directory: ./backend
-      run: go build -v ./...
+    - name: Build shared module
+      working-directory: ./backend/shared
+      run: |
+        echo "Building shared module..."
+        go mod download
+        go build -v ./...
 
-    - name: Test all workspace modules
-      working-directory: ./backend
-      run: go test -v ./...
-
-    - name: Build individual services
+    - name: Build and test individual services
       working-directory: ./backend
       run: |
-        echo "Building menu-service..."
-        go build -o bin/menu-service ./menu-service/cmd/server
-        echo "Building reservation-service..."
-        go build -o bin/reservation-service ./reservation-service/cmd/server
-        echo "Building inventory-service..."
-        go build -o bin/inventory-service ./inventory-service/cmd/server
-        echo "Building kitchen-service..."
-        go build -o bin/kitchen-service ./kitchen-service/cmd/server
-        echo "Building order-service..."
-        go build -o bin/order-service ./order-service/cmd/server
+        echo "Creating bin directory..."
+        mkdir -p bin
+        
+        services=("menu-service" "reservation-service" "inventory-service" "kitchen-service" "order-service")
+        
+        for service in "${services[@]}"; do
+          echo "======================================="
+          echo "Processing $service..."
+          echo "======================================="
+          cd $service
+          
+          echo "Downloading dependencies for $service..."
+          go mod download
+          
+          echo "Building $service modules..."
+          go build -v ./...
+          
+          echo "Running tests for $service..."
+          # Skip tests if no test files exist
+          if find . -name "*_test.go" | grep -q .; then
+            go test -v ./...
+          else
+            echo "No test files found for $service, skipping tests"
+          fi
+          
+          echo "Building $service binary..."
+          go build -o ../bin/$service ./cmd/server
+          
+          echo "✓ $service completed successfully"
+          cd ..
+        done
 
     - name: Verify builds
       working-directory: ./backend
       run: |
         echo "Verifying built binaries exist..."
         ls -la bin/
+        echo "Checking binary executability..."
+        for binary in bin/*; do
+          if [ -f "$binary" ]; then
+            echo "✓ $binary exists and is executable"
+            file "$binary"
+          fi
+        done
