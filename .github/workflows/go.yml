@@ -1,4 +1,4 @@
-# This workflow will build a golang project
+# This workflow will build and test all Go modules in the workspace
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
 name: Go
@@ -11,7 +11,7 @@ on:
 
 jobs:
 
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -21,8 +21,34 @@ jobs:
       with:
         go-version: '1.24.4'
 
-    - name: Build
-      run: cd backend && go build -v ./...
+    - name: Download workspace dependencies
+      working-directory: ./backend
+      run: go work sync
 
-    - name: Test
-      run: cd backend && go test -v ./...
+    - name: Build all workspace modules
+      working-directory: ./backend
+      run: go build -v ./...
+
+    - name: Test all workspace modules
+      working-directory: ./backend
+      run: go test -v ./...
+
+    - name: Build individual services
+      working-directory: ./backend
+      run: |
+        echo "Building menu-service..."
+        go build -o bin/menu-service ./menu-service/cmd/server
+        echo "Building reservation-service..."
+        go build -o bin/reservation-service ./reservation-service/cmd/server
+        echo "Building inventory-service..."
+        go build -o bin/inventory-service ./inventory-service/cmd/server
+        echo "Building kitchen-service..."
+        go build -o bin/kitchen-service ./kitchen-service/cmd/server
+        echo "Building order-service..."
+        go build -o bin/order-service ./order-service/cmd/server
+
+    - name: Verify builds
+      working-directory: ./backend
+      run: |
+        echo "Verifying built binaries exist..."
+        ls -la bin/
