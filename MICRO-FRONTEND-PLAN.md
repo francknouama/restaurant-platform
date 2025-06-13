@@ -1,22 +1,22 @@
-# Restaurant Platform - Micro Frontend Implementation Plan
+# Restaurant Platform - Frontend Reimplementation Plan
 
 ## Overview
 
-This document outlines the complete migration plan from the current monolithic frontend to a modern micro frontend architecture using React 18, TypeScript, Tailwind CSS, and Webpack Module Federation.
+This document outlines the complete reimplementation plan for the restaurant platform frontend. The current frontend was scaffolded by Bolt.new but doesn't align with our Go backend's restaurant domain model. We need to rebuild it properly.
 
 ## Current State Analysis
 
-### Issues with Current Frontend
-- Monolithic TypeScript class-based structure
-- Basic TailwindCSS styling that needs design system integration
-- Vanilla JS/TS with manual DOM manipulation
-- Single application serving all restaurant features
-- Tightly coupled components with no reusability
-- No module federation or micro frontend architecture
+### Issues with Current Bolt.new Frontend
+- **Domain Misalignment**: Generic task/user management instead of restaurant domains
+- **Wrong Entity Types**: User/Task entities instead of Menu/Order/Kitchen/Reservation/Inventory
+- **Incorrect API Services**: Tasks/auth services instead of restaurant-specific services  
+- **Wrong Page Structure**: Dashboard/Profile/Tasks instead of Menu/Orders/Kitchen pages
+- **Generic Routing**: Auth-focused routing instead of restaurant workflow routing
+- **Missing Business Logic**: No restaurant-specific validation or business rules
 
-### Technology Migration
-- **From**: Vanilla TypeScript + TailwindCSS + Vite
-- **To**: React 18 + TypeScript + Tailwind CSS + Webpack Module Federation
+### Required Migration
+- **From**: Generic task management SPA with React 18 + TypeScript + Tailwind
+- **To**: Restaurant-specific domain-driven frontend aligned with Go backend microservices
 
 ## Target Architecture
 
@@ -59,177 +59,271 @@ restaurant-platform-frontend/
 
 ## Implementation Phases
 
-## Phase 1: Foundation Setup (Week 1-2)
+## Phase 1: Clean Slate & Foundation (Week 1-2)
 
 ### Objectives
-- Setup modern development environment
-- Create shared design system
-- Implement shell application with basic routing
+- Remove existing Bolt.new frontend completely
+- Create restaurant-specific domain foundation
+- Implement proper TypeScript types aligned with Go backend
+- Setup development environment for restaurant platform
 
 ### Tasks
 
-#### 1.1 Workspace Setup
-- [x] Create monorepo structure with pnpm workspaces
-- [x] Setup TypeScript configurations for all packages
-- [x] Configure ESLint and Prettier for consistent code style
-- [x] Setup shared package.json scripts and dependencies
+#### 1.1 Clean Slate
+- [ ] Remove all existing frontend code (pages, components, types, API services)
+- [ ] Keep only package.json dependencies and build configuration
+- [ ] Preserve Vite setup but remove all application code
+- [ ] Clean up unused imports and references
 
-#### 1.2 Shared Design System
-- [x] Create `@shared-ui/components` package
-- [x] Setup Tailwind CSS configuration with restaurant theme
-- [x] Implement core UI components (Button, Card, Modal, etc.)
-- [x] Create design tokens and color palette
-- [x] Setup Storybook for component documentation
+#### 1.2 Restaurant Domain Types
+- [ ] Create TypeScript types matching Go backend domain models:
+  - Menu types (Menu, MenuCategory, MenuItem, MenuID)
+  - Order types (Order, OrderItem, OrderStatus, OrderType)
+  - Kitchen types (KitchenOrder, KitchenItem, KitchenStatus, Priority)
+  - Reservation types (Reservation, ReservationStatus)
+  - Inventory types (InventoryItem, StockMovement, Supplier)
+- [ ] Add type-safe ID system matching Go generics pattern
+- [ ] Create API response types for each domain service
+- [ ] Add status enum types and validation
 
-#### 1.3 Shell Application
-- [x] Create React 18 shell app with TypeScript
-- [x] Setup Webpack Module Federation host configuration
-- [x] Implement basic routing with React Router
-- [x] Create global layout components (Header, Sidebar, Footer)
-- [x] Setup authentication state management with Zustand
-- [x] Implement error boundaries for micro frontends
+#### 1.3 Restaurant API Layer
+- [ ] Create domain-specific API clients:
+  - MenuService API client
+  - OrderService API client 
+  - KitchenService API client
+  - ReservationService API client
+  - InventoryService API client
+- [ ] Setup React Query hooks for each domain
+- [ ] Add proper error handling for restaurant business rules
+- [ ] Configure API routing to match microservices architecture
 
-#### 1.4 Shared Utilities
-- [x] Create `@shared-utils/api` package
-- [x] Setup Axios configuration for backend integration
-- [x] Implement React Query setup and configurations
-- [x] Create shared TypeScript types
-- [x] Setup event bus for MFE communication
+#### 1.4 Restaurant Navigation & Routing
+- [ ] Design restaurant-specific page structure:
+  - `/menus` - Menu management
+  - `/orders` - Order processing
+  - `/kitchen` - Kitchen dashboard
+  - `/reservations` - Table bookings
+  - `/inventory` - Stock management
+- [ ] Create restaurant workflow-based navigation
+- [ ] Remove generic auth/dashboard routing
+- [ ] Add role-based routing (admin, kitchen staff, waiters)
 
 ### Deliverables
-- Complete monorepo workspace
-- Shared design system with Tailwind
-- Shell application with basic navigation
-- Shared utilities and API layer
-- Development environment setup
+- Clean codebase with no generic/task management code
+- Complete restaurant domain TypeScript types
+- Restaurant-specific API layer
+- Proper routing structure for restaurant operations
+- Foundation for restaurant business workflows
 
 ---
 
-## Phase 2: Core Business MFEs (Week 3-4)
+## Phase 2: Core Restaurant Features (Week 3-4)
 
 ### Objectives
-- Implement the most critical business functionality
-- Enable menu management and order processing
-- Establish MFE integration patterns
+- Implement essential restaurant operations: menu management and order processing
+- Create restaurant-specific UI components and workflows
+- Establish proper business rule validation
 
 ### Tasks
 
-#### 2.1 Menu Management MFE
-- [x] Create `menu-mfe` with Webpack Module Federation
-- [x] Implement menu CRUD operations interface
-- [x] Create category and menu item management
-- [x] Build drag-and-drop menu organization
-- [x] Implement image upload for menu items
-- [x] Add real-time availability toggle
-- [x] Setup integration with inventory events
+#### 2.1 Menu Management System
+- [ ] Create Menu management pages:
+  - Menu list view with active/inactive status
+  - Menu editor with category management
+  - Menu item CRUD with pricing and descriptions
+  - Menu versioning and cloning functionality
+- [ ] Implement business rule validation:
+  - Only one active menu at a time
+  - Unique category/item names within scope
+  - Menu item availability tracking
+- [ ] Add menu organization features:
+  - Category ordering and management
+  - Item availability toggles
+  - Price management and updates
+- [ ] Create menu display components for customer view
 
-#### 2.2 Orders Management MFE
-- [ ] Create `orders-mfe` with Module Federation
-- [ ] Implement order creation and editing interface
-- [ ] Build order tracking and status management
-- [ ] Create customer order history views
-- [ ] Implement real-time order updates
-- [ ] Add order filtering and search
-- [ ] Setup integration with kitchen events
+#### 2.2 Order Processing System  
+- [ ] Create Order management interface:
+  - Order creation with menu item selection
+  - Order type handling (DINE_IN, TAKEOUT, DELIVERY)
+  - Order status tracking (CREATED → PAID → PREPARING → READY → COMPLETED)
+  - Customer information management
+- [ ] Implement order business logic:
+  - Automatic tax calculation (10%)
+  - Order total calculation
+  - Status transition validation
+  - Type-specific requirements (table ID, delivery address)
+- [ ] Add order workflow features:
+  - Order modification before payment
+  - Order cancellation with business rules
+  - Real-time status updates
+  - Order history and filtering
 
-#### 2.3 MFE Integration
-- [ ] Implement dynamic module loading in shell
-- [ ] Setup cross-MFE communication patterns
-- [ ] Create shared state synchronization
-- [ ] Implement error handling and fallbacks
-- [ ] Add loading states and skeleton components
+#### 2.3 Restaurant UI Components
+- [ ] Create restaurant-specific components:
+  - MenuCard with item details and pricing
+  - OrderCard with status badges and actions
+  - StatusBadge with restaurant status colors
+  - RestaurantTable for data display
+  - RestaurantModal for order/menu editing
+- [ ] Add restaurant theming:
+  - Restaurant color palette
+  - Food/hospitality focused icons
+  - Order status color coding
+  - Professional restaurant styling
 
 ### Deliverables
-- Fully functional Menu MFE
-- Fully functional Orders MFE
-- Integrated shell application
-- Real-time event handling
-- Cross-MFE communication patterns
+- Complete menu management system
+- Full order processing workflow
+- Restaurant-specific UI component library
+- Business rule validation throughout
+- Professional restaurant application interface
 
 ---
 
-## Phase 3: Operational MFEs (Week 5-6)
+## Phase 3: Kitchen & Reservation Operations (Week 5-6)
 
 ### Objectives
-- Implement kitchen workflow management
-- Add reservation system
-- Enable complete restaurant operations
+- Implement kitchen workflow management with real-time updates
+- Add complete reservation system
+- Enable full restaurant operational capabilities
 
 ### Tasks
 
-#### 3.1 Kitchen Dashboard MFE
-- [ ] Create `kitchen-mfe` with Module Federation
-- [ ] Build real-time kitchen dashboard
-- [ ] Implement order queue management interface
-- [ ] Create prep time tracking and timers
-- [ ] Add station assignment functionality
-- [ ] Build order completion workflows
-- [ ] Setup WebSocket integration for real-time updates
+#### 3.1 Kitchen Dashboard System
+- [ ] Create Kitchen order management:
+  - Real-time kitchen order queue display
+  - Order priority management (LOW, NORMAL, HIGH, URGENT)
+  - Kitchen order status tracking (NEW → PREPARING → READY → COMPLETED)
+  - Station assignment for workflow optimization
+- [ ] Implement kitchen workflow features:
+  - Prep time estimation and tracking
+  - Order completion timers
+  - Item-level preparation status
+  - Kitchen performance metrics
+- [ ] Add kitchen-specific UI:
+  - Large, clear order displays for kitchen staff
+  - Touch-friendly interfaces for busy kitchen environment
+  - Color-coded priority and status indicators
+  - Audio notifications for new orders
+- [ ] Setup real-time integration:
+  - WebSocket connections for live order updates
+  - Automatic order synchronization with order service
+  - Kitchen completion notifications to waitstaff
 
-#### 3.2 Reservations MFE
-- [ ] Create `reservations-mfe` with Module Federation
-- [ ] Implement table booking interface
-- [ ] Build calendar view for reservations
-- [ ] Create customer management system
-- [ ] Add waitlist functionality
-- [ ] Implement table layout visualization
-- [ ] Setup reservation conflict detection
+#### 3.2 Reservation Management System
+- [ ] Create Reservation booking interface:
+  - Table booking with date/time selection
+  - Party size management and validation
+  - Customer information capture
+  - Reservation status tracking (PENDING → CONFIRMED → COMPLETED)
+- [ ] Implement reservation business logic:
+  - Future date validation
+  - Table availability checking
+  - Reservation conflict detection
+  - No-show tracking and management
+- [ ] Add reservation workflow features:
+  - Calendar view for reservation management
+  - Daily reservation dashboard
+  - Customer history and preferences
+  - Waitlist management
+- [ ] Create table management:
+  - Visual table layout representation
+  - Table assignment and optimization
+  - Reservation-to-table linking
 
-#### 3.3 Advanced Shell Features
-- [ ] Implement role-based navigation
-- [ ] Add global notification system
-- [ ] Create advanced routing with guards
-- [ ] Implement theme switching
-- [ ] Add global search functionality
+#### 3.3 Operational Integration
+- [ ] Add cross-domain functionality:
+  - Order-to-kitchen workflow integration
+  - Reservation-to-order conversion
+  - Menu availability impact on reservations
+  - Inventory alerts affecting kitchen operations
+- [ ] Create operational dashboards:
+  - Daily operations overview
+  - Real-time restaurant status
+  - Performance metrics and KPIs
+  - Staff workflow optimization
 
 ### Deliverables
-- Fully functional Kitchen MFE
-- Fully functional Reservations MFE
-- Enhanced shell with advanced features
-- Complete operational workflow support
-- Role-based access control
+- Complete kitchen dashboard with real-time updates
+- Full reservation management system
+- Operational integration between all restaurant domains
+- Real-time communication and notifications
+- Professional restaurant operations interface
 
 ---
 
-## Phase 4: Advanced Features (Week 7-8)
+## Phase 4: Inventory & Advanced Features (Week 7-8)
 
 ### Objectives
-- Complete inventory management
-- Add analytics and reporting
-- Implement advanced UI features
+- Complete inventory management system
+- Add restaurant analytics and reporting
+- Implement advanced restaurant-specific features
 
 ### Tasks
 
-#### 4.1 Inventory Management MFE
-- [ ] Create `inventory-mfe` with Module Federation
-- [ ] Build stock level monitoring interface
-- [ ] Implement supplier management system
-- [ ] Create reorder alerts and automation
-- [ ] Add inventory analytics and reports
-- [ ] Implement waste tracking functionality
-- [ ] Setup integration with menu availability
+#### 4.1 Inventory Management System
+- [ ] Create Inventory tracking interface:
+  - Stock level monitoring with visual indicators
+  - Inventory item CRUD with SKU management
+  - Supplier information and contact management
+  - Stock movement tracking (RECEIVED, USED, WASTED, ADJUSTED)
+- [ ] Implement inventory business logic:
+  - Threshold-based reorder alerts
+  - Stock validation for menu item availability
+  - Waste tracking and cost analysis
+  - Supplier performance tracking
+- [ ] Add inventory workflow features:
+  - Purchase order creation and management
+  - Receiving workflow with quantity verification
+  - Inventory usage tracking from kitchen orders
+  - Automated menu item availability updates
+- [ ] Create inventory analytics:
+  - Cost analysis and profit margins
+  - Waste reduction insights
+  - Supplier performance metrics
+  - Inventory turnover reports
 
-#### 4.2 Advanced UI/UX
-- [ ] Implement smooth animations with Framer Motion
-- [ ] Add micro-interactions and transitions
-- [ ] Create data visualization components
-- [ ] Implement advanced form components
-- [ ] Add keyboard shortcuts and accessibility
-- [ ] Create mobile-optimized interfaces
+#### 4.2 Restaurant Analytics & Reporting
+- [ ] Create business intelligence dashboards:
+  - Daily/weekly/monthly sales reports
+  - Menu item performance analysis
+  - Kitchen efficiency metrics
+  - Customer ordering patterns
+- [ ] Add operational analytics:
+  - Order completion times
+  - Kitchen station performance
+  - Peak hours and capacity planning
+  - Staff productivity metrics
+- [ ] Implement financial reporting:
+  - Revenue tracking by order type
+  - Cost of goods sold (COGS) analysis
+  - Profit margin analysis by menu item
+  - Inventory cost tracking
 
-#### 4.3 Real-time Features
-- [ ] Setup WebSocket connections for all MFEs
-- [ ] Implement real-time notifications
-- [ ] Add live dashboard updates
-- [ ] Create event-driven UI synchronization
-- [ ] Setup push notifications
+#### 4.3 Advanced Restaurant Features
+- [ ] Add restaurant-specific enhancements:
+  - Customer loyalty program integration
+  - Menu recommendation engine
+  - Seasonal menu planning
+  - Special dietary requirement handling
+- [ ] Implement mobile optimization:
+  - Mobile-first design for staff tablets
+  - Touch-optimized interfaces for kitchen
+  - Mobile customer ordering interface
+  - Responsive design for all screen sizes
+- [ ] Add accessibility features:
+  - Screen reader support for staff interfaces
+  - High contrast mode for kitchen displays
+  - Keyboard navigation for efficiency
+  - Multi-language support
 
 ### Deliverables
-- Fully functional Inventory MFE
-- Enhanced UI with animations
-- Complete real-time functionality
+- Complete inventory management system
+- Comprehensive restaurant analytics
+- Advanced restaurant-specific features
 - Mobile-optimized interfaces
-- Advanced analytics and reporting
+- Accessibility-compliant design
 
 ---
 
@@ -380,43 +474,73 @@ new ModuleFederationPlugin({
 
 ### API Integration
 
-#### Shared API Client
+#### Restaurant API Clients
 ```typescript
-// @shared-utils/api
-export const apiClient = axios.create({
-  baseURL: '/api/v1',
-  timeout: 10000
-});
+// Menu Service API
+export const menuApi = {
+  getMenus: () => apiClient.get('/menus'),
+  getActiveMenu: () => apiClient.get('/menus/active'),
+  createMenu: (data: CreateMenuRequest) => apiClient.post('/menus', data),
+  updateMenu: (id: string, data: UpdateMenuRequest) => apiClient.put(`/menus/${id}`, data),
+  activateMenu: (id: string) => apiClient.post(`/menus/${id}/activate`),
+  addMenuItem: (menuId: string, categoryId: string, item: MenuItemRequest) => 
+    apiClient.post(`/menus/${menuId}/categories/${categoryId}/items`, item)
+};
 
-export const useMenus = () => useQuery({
-  queryKey: ['menus'],
-  queryFn: () => apiClient.get('/menus').then(res => res.data)
-});
+// Order Service API
+export const orderApi = {
+  getOrders: (params?: OrderFilters) => apiClient.get('/orders', { params }),
+  createOrder: (data: CreateOrderRequest) => apiClient.post('/orders', data),
+  updateOrderStatus: (id: string, status: OrderStatus) => 
+    apiClient.patch(`/orders/${id}/status`, { status }),
+  cancelOrder: (id: string) => apiClient.patch(`/orders/${id}/cancel`)
+};
 
-export const useOrders = () => useQuery({
-  queryKey: ['orders'],
-  queryFn: () => apiClient.get('/orders').then(res => res.data)
-});
+// Kitchen Service API
+export const kitchenApi = {
+  getKitchenOrders: () => apiClient.get('/kitchen/orders'),
+  startOrderPreparation: (id: string) => apiClient.post(`/kitchen/orders/${id}/start`),
+  completeKitchenOrder: (id: string) => apiClient.post(`/kitchen/orders/${id}/complete`),
+  assignStation: (id: string, station: string) => 
+    apiClient.patch(`/kitchen/orders/${id}/station`, { station })
+};
 ```
 
-### Real-time Communication
+### Restaurant Real-time Communication
 
 #### WebSocket Integration
-- Order status updates
-- Kitchen queue changes
-- Inventory alerts
-- Reservation notifications
+- Order status updates (order service → kitchen/frontend)
+- Kitchen queue changes (kitchen service → order management)
+- Menu availability updates (inventory service → menu service)
+- Reservation confirmations (reservation service → customer notifications)
 
-#### Event Bus
+#### Restaurant Event System
 ```typescript
-// Cross-MFE communication
-export const eventBus = new EventEmitter();
+// Restaurant-specific events
+export const restaurantEvents = {
+  // Order events
+  ORDER_CREATED: 'order:created',
+  ORDER_STATUS_CHANGED: 'order:status_changed',
+  ORDER_PAID: 'order:paid',
+  ORDER_COMPLETED: 'order:completed',
+  
+  // Kitchen events
+  KITCHEN_ORDER_STARTED: 'kitchen:order_started',
+  KITCHEN_ORDER_READY: 'kitchen:order_ready',
+  KITCHEN_QUEUE_UPDATED: 'kitchen:queue_updated',
+  
+  // Menu events
+  MENU_ITEM_AVAILABILITY_CHANGED: 'menu:item_availability_changed',
+  MENU_ACTIVATED: 'menu:activated',
+  
+  // Inventory events
+  INVENTORY_LOW_STOCK: 'inventory:low_stock',
+  INVENTORY_OUT_OF_STOCK: 'inventory:out_of_stock'
+};
 
-// Emit events
-eventBus.emit('order:created', orderData);
-
-// Listen to events
-eventBus.on('order:updated', handleOrderUpdate);
+// Usage
+eventBus.emit(restaurantEvents.ORDER_CREATED, orderData);
+eventBus.on(restaurantEvents.KITCHEN_ORDER_READY, handleOrderReady);
 ```
 
 ## Development Workflow
@@ -508,29 +632,31 @@ restaurant-platform-frontend/
 
 ## Success Metrics
 
+### Restaurant Operations
+- Order processing time reduced by 40%
+- Kitchen efficiency improved with real-time queue management
+- Menu management simplified with drag-and-drop interface
+- Reservation conflicts eliminated with smart scheduling
+- Inventory waste reduced through better tracking
+
 ### Performance
 - Initial load time < 2 seconds
-- MFE lazy loading < 500ms
-- Bundle sizes optimized
+- Real-time updates < 100ms latency
+- Mobile-optimized for kitchen tablets
 - 95+ Lighthouse scores
 
-### Developer Experience
-- Hot module replacement
-- Type safety across MFEs
-- Consistent development workflow
-- Comprehensive testing coverage
-
-### User Experience
-- Responsive design (mobile-first)
-- Accessible (WCAG 2.1 AA)
-- Smooth animations and transitions
-- Real-time updates and notifications
+### Staff Experience
+- Intuitive interfaces for non-technical restaurant staff
+- Touch-optimized for kitchen environment
+- Role-based access (admin, kitchen, waitstaff)
+- Minimal training required
 
 ### Business Impact
-- Independent deployment of features
-- Faster development cycles
-- Better maintainability
-- Scalable architecture
+- Faster order-to-kitchen workflow
+- Reduced food waste through inventory integration
+- Improved customer satisfaction with accurate wait times
+- Better profit margins through cost tracking
+- Scalable to multiple restaurant locations
 
 ## Risk Mitigation
 
@@ -547,12 +673,25 @@ restaurant-platform-frontend/
 
 ## Next Steps
 
-1. **Phase 1**: Begin with workspace setup and shared design system
-2. **Stakeholder Review**: Present plan and gather feedback
-3. **Resource Allocation**: Assign development teams to phases
-4. **Timeline Refinement**: Adjust timeline based on team capacity
-5. **Implementation Start**: Begin Phase 1 development
+1. **Phase 1**: Clean slate - Remove all Bolt.new code and create restaurant domain foundation
+2. **Domain Alignment**: Implement TypeScript types matching Go backend exactly
+3. **API Integration**: Build restaurant-specific API clients for each microservice
+4. **Restaurant UI**: Create domain-specific components and workflows
+5. **Stakeholder Review**: Demo restaurant-specific functionality
+
+## Implementation Strategy
+
+### Option A: Complete Rebuild (Recommended)
+- Remove all existing frontend code
+- Start fresh with restaurant domain model
+- Faster development with proper foundation
+- Clean architecture from the start
+
+### Option B: Gradual Migration  
+- Keep existing structure and gradually replace components
+- Higher risk of architectural debt
+- Longer timeline due to refactoring overhead
 
 ---
 
-*This plan represents a complete transformation from monolithic to micro frontend architecture, enabling independent development, deployment, and scaling of restaurant platform features while providing a modern, beautiful user experience.*
+*This plan transforms the generic Bolt.new frontend into a professional restaurant management platform that properly aligns with the Go backend's clean architecture and domain-driven design.*
