@@ -44,7 +44,7 @@ jobs:
         echo "Creating bin directory..."
         mkdir -p bin
         
-        services=("menu-service" "reservation-service" "inventory-service" "kitchen-service" "order-service")
+        services=("menu-service" "reservation-service" "inventory-service" "kitchen-service" "order-service" "user-service")
         
         for service in "${services[@]}"; do
           echo "======================================="
@@ -61,7 +61,19 @@ jobs:
           echo "Running tests for $service..."
           # Skip tests if no test files exist
           if find . -name "*_test.go" | grep -q .; then
-            go test -v ./...
+            echo "Found test files, running tests..."
+            # List test files found
+            echo "Test files found:"
+            find . -name "*_test.go" -type f
+            # Disable workspace mode for individual service testing
+            echo "Running tests with coverage..."
+            GOWORK=off go test -v ./... -cover -coverprofile=coverage.out || {
+              echo "❌ Tests failed for $service"
+              exit 1
+            }
+            echo "✓ Tests passed for $service"
+            # Clean up coverage file
+            rm -f coverage.out
           else
             echo "No test files found for $service, skipping tests"
           fi
