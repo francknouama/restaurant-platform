@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  
+  body {
+    @apply text-neutral-900 bg-neutral-50;
+  }
+}
+
+@layer components {
+  /* Restaurant theme scrollbar */
+  .restaurant-scrollbar {
+    @apply scrollbar-thin scrollbar-thumb-primary-500 scrollbar-track-neutral-200;
+  }
+  
+  /* Restaurant theme focus styles */
+  .restaurant-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+}

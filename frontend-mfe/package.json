@@ -1,0 +1,50 @@
+{
+  "name": "restaurant-platform-mfe",
+  "version": "1.0.0",
+  "description": "Restaurant Platform Micro-Frontend Architecture",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm run --parallel dev",
+    "dev:shell": "pnpm --filter @restaurant/shell-app dev",
+    "dev:menu": "pnpm --filter @restaurant/menu-mfe dev",
+    "dev:orders": "pnpm --filter @restaurant/orders-mfe dev",
+    "dev:kitchen": "pnpm --filter @restaurant/kitchen-mfe dev",
+    "dev:reservations": "pnpm --filter @restaurant/reservations-mfe dev",
+    "dev:inventory": "pnpm --filter @restaurant/inventory-mfe dev",
+    "build": "pnpm run --parallel build",
+    "build:shell": "pnpm --filter @restaurant/shell-app build",
+    "build:mfes": "pnpm --filter '@restaurant/*-mfe' build",
+    "build:shared": "pnpm --filter '@restaurant/shared-*' build",
+    "lint": "pnpm run --parallel lint",
+    "lint:fix": "pnpm run --parallel lint:fix",
+    "type-check": "pnpm run --parallel type-check",
+    "test": "pnpm run --parallel test",
+    "clean": "pnpm run --parallel clean && rm -rf node_modules",
+    "preview": "pnpm run --parallel preview",
+    "start": "pnpm run dev"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
+    "@tailwindcss/aspect-ratio": "^0.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/restaurant-platform/frontend-mfe"
+  },
+  "keywords": [
+    "micro-frontend",
+    "module-federation",
+    "restaurant",
+    "react",
+    "typescript"
+  ],
+  "author": "Restaurant Platform Team",
+  "license": "MIT"
+}

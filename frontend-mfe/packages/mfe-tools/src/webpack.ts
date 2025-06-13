@@ -1,0 +1,1 @@
+export { createMfeConfig } from '../configs/webpack.mfe.js';

@@ -1,0 +1,38 @@
+{
+  "name": "@restaurant/mfe-tools",
+  "version": "1.0.0",
+  "description": "Build tools and utilities for Restaurant Platform micro-frontends",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "configs"
+  ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint . --ext ts,js --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,js --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "@module-federation/webpack": "^2.0.0",
+    "webpack": "^5.89.0",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.3",
+    "mini-css-extract-plugin": "^2.7.6",
+    "css-loader": "^6.8.1",
+    "style-loader": "^3.3.3",
+    "postcss-loader": "^7.3.3",
+    "ts-loader": "^9.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/webpack": "^5.28.5",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "eslint": "^8.55.0",
+    "typescript": "^5.2.2"
+  }
+}
