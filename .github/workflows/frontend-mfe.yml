@@ -230,7 +230,7 @@ jobs:
           path: frontend-mfe/apps/${{ matrix.app }}/dist
           retention-days: 7
 
-  integration-test:
+  e2e-test:
     needs: [build]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -264,26 +264,27 @@ jobs:
         working-directory: frontend-mfe
         run: pnpm install --frozen-lockfile
       
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: frontend-mfe/dist-artifacts
+      - name: Install Playwright browsers
+        working-directory: frontend-mfe
+        run: pnpm exec playwright install --with-deps
       
-      - name: Run integration tests
+      - name: Build all MFEs
         working-directory: frontend-mfe
         run: |
-          # Start all MFEs in the background
-          pnpm run serve:all &
-          SERVER_PID=$!
-          
-          # Wait for servers to start
-          sleep 10
-          
-          # Run integration tests
-          pnpm run test:integration
-          
-          # Stop servers
-          kill $SERVER_PID
+          pnpm run build:shared
+          pnpm run build
+      
+      - name: Run E2E tests
+        working-directory: frontend-mfe
+        run: pnpm test:e2e
+      
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend-mfe/playwright-report/
+          retention-days: 30
 
   deploy-preview:
     needs: [build]
@@ -320,7 +321,7 @@ jobs:
             })
 
   deploy-production:
-    needs: [build, integration-test]
+    needs: [build, e2e-test]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -348,4 +349,4 @@ jobs:
         with:
           status: ${{ job.status }}
           text: 'MFE Production Deployment ${{ job.status }}'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

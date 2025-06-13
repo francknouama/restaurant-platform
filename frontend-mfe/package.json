@@ -19,6 +19,13 @@
     "lint:fix": "pnpm run --parallel lint:fix",
     "type-check": "pnpm run --parallel type-check",
     "test": "pnpm run --parallel test",
+    "test:unit": "pnpm run --parallel test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:ci": "playwright test --reporter=github",
+    "test:e2e:report": "playwright show-report",
     "test:integration": "pnpm run --filter @restaurant/shell-app test:integration",
     "clean": "pnpm run --parallel clean && rm -rf node_modules",
     "preview": "pnpm run --parallel preview",
@@ -31,7 +38,8 @@
     "typescript": "^5.3.3",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
-    "@tailwindcss/aspect-ratio": "^0.4.2"
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@playwright/test": "^1.40.0"
   },
   "engines": {
     "node": ">=18.0.0",

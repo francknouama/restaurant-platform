@@ -17,3 +17,10 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+# NodeJS
+node_modules
+.env
+
+# Playwright
+playwright-report
