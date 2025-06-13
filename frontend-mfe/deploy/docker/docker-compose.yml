@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  shell-app:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/shell-app.Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_MENU_MFE_URL=http://localhost:3001
+      - VITE_ORDERS_MFE_URL=http://localhost:3002
+      - VITE_KITCHEN_MFE_URL=http://localhost:3003
+      - VITE_INVENTORY_MFE_URL=http://localhost:3004
+      - VITE_RESERVATIONS_MFE_URL=http://localhost:3005
+      - VITE_API_BASE_URL=http://localhost:8080
+    networks:
+      - restaurant-mfe
+
+  menu-mfe:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/mfe.Dockerfile
+      args:
+        - MFE_NAME=menu-mfe
+    ports:
+      - "3001:80"
+    networks:
+      - restaurant-mfe
+
+  orders-mfe:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/mfe.Dockerfile
+      args:
+        - MFE_NAME=orders-mfe
+    ports:
+      - "3002:80"
+    networks:
+      - restaurant-mfe
+
+  kitchen-mfe:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/mfe.Dockerfile
+      args:
+        - MFE_NAME=kitchen-mfe
+    ports:
+      - "3003:80"
+    networks:
+      - restaurant-mfe
+
+  inventory-mfe:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/mfe.Dockerfile
+      args:
+        - MFE_NAME=inventory-mfe
+    ports:
+      - "3004:80"
+    networks:
+      - restaurant-mfe
+
+  reservations-mfe:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/mfe.Dockerfile
+      args:
+        - MFE_NAME=reservations-mfe
+    ports:
+      - "3005:80"
+    networks:
+      - restaurant-mfe
+
+  # Nginx reverse proxy for production-like setup
+  nginx-proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - shell-app
+      - menu-mfe
+      - orders-mfe
+      - kitchen-mfe
+      - inventory-mfe
+      - reservations-mfe
+    networks:
+      - restaurant-mfe
+
+networks:
+  restaurant-mfe:
+    driver: bridge

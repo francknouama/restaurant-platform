@@ -1,0 +1,351 @@
+name: Frontend MFE CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend-mfe/**'
+      - '.github/workflows/frontend-mfe.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend-mfe/**'
+      - '.github/workflows/frontend-mfe.yml'
+
+env:
+  NODE_VERSION: '18.x'
+  PNPM_VERSION: '8'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shell-app: ${{ steps.filter.outputs.shell-app }}
+      menu-mfe: ${{ steps.filter.outputs.menu-mfe }}
+      orders-mfe: ${{ steps.filter.outputs.orders-mfe }}
+      kitchen-mfe: ${{ steps.filter.outputs.kitchen-mfe }}
+      inventory-mfe: ${{ steps.filter.outputs.inventory-mfe }}
+      reservations-mfe: ${{ steps.filter.outputs.reservations-mfe }}
+      shared-packages: ${{ steps.filter.outputs.shared-packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            shell-app:
+              - 'frontend-mfe/apps/shell-app/**'
+            menu-mfe:
+              - 'frontend-mfe/apps/menu-mfe/**'
+            orders-mfe:
+              - 'frontend-mfe/apps/orders-mfe/**'
+            kitchen-mfe:
+              - 'frontend-mfe/apps/kitchen-mfe/**'
+            inventory-mfe:
+              - 'frontend-mfe/apps/inventory-mfe/**'
+            reservations-mfe:
+              - 'frontend-mfe/apps/reservations-mfe/**'
+            shared-packages:
+              - 'frontend-mfe/packages/**'
+
+  install-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      
+      - name: Install dependencies
+        working-directory: frontend-mfe
+        run: pnpm install --frozen-lockfile
+
+  lint-and-typecheck:
+    needs: [detect-changes, install-dependencies]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [shell-app, menu-mfe, orders-mfe, kitchen-mfe, inventory-mfe, reservations-mfe]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+      
+      - name: Install dependencies
+        working-directory: frontend-mfe
+        run: pnpm install --frozen-lockfile
+      
+      - name: Lint ${{ matrix.app }}
+        if: needs.detect-changes.outputs[matrix.app] == 'true' || needs.detect-changes.outputs.shared-packages == 'true'
+        working-directory: frontend-mfe
+        run: |
+          pnpm --filter @restaurant/${{ matrix.app }} lint
+      
+      - name: Type check ${{ matrix.app }}
+        if: needs.detect-changes.outputs[matrix.app] == 'true' || needs.detect-changes.outputs.shared-packages == 'true'
+        working-directory: frontend-mfe
+        run: |
+          pnpm --filter @restaurant/${{ matrix.app }} type-check
+
+  test:
+    needs: [detect-changes, install-dependencies]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [shell-app, menu-mfe, orders-mfe, kitchen-mfe, inventory-mfe, reservations-mfe]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+      
+      - name: Install dependencies
+        working-directory: frontend-mfe
+        run: pnpm install --frozen-lockfile
+      
+      - name: Test ${{ matrix.app }}
+        if: needs.detect-changes.outputs[matrix.app] == 'true' || needs.detect-changes.outputs.shared-packages == 'true'
+        working-directory: frontend-mfe
+        run: |
+          pnpm --filter @restaurant/${{ matrix.app }} test --passWithNoTests
+
+  build:
+    needs: [detect-changes, install-dependencies, lint-and-typecheck, test]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [shell-app, menu-mfe, orders-mfe, kitchen-mfe, inventory-mfe, reservations-mfe]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+      
+      - name: Install dependencies
+        working-directory: frontend-mfe
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build shared packages
+        if: needs.detect-changes.outputs.shared-packages == 'true'
+        working-directory: frontend-mfe
+        run: |
+          pnpm --filter @restaurant/shared-ui build
+          pnpm --filter @restaurant/shared-state build
+          pnpm --filter @restaurant/shared-utils build
+      
+      - name: Build ${{ matrix.app }}
+        if: needs.detect-changes.outputs[matrix.app] == 'true' || needs.detect-changes.outputs.shared-packages == 'true'
+        working-directory: frontend-mfe
+        run: |
+          pnpm --filter @restaurant/${{ matrix.app }} build
+      
+      - name: Upload build artifacts
+        if: needs.detect-changes.outputs[matrix.app] == 'true' || needs.detect-changes.outputs.shared-packages == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.app }}-build
+          path: frontend-mfe/apps/${{ matrix.app }}/dist
+          retention-days: 7
+
+  integration-test:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+      
+      - name: Install dependencies
+        working-directory: frontend-mfe
+        run: pnpm install --frozen-lockfile
+      
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: frontend-mfe/dist-artifacts
+      
+      - name: Run integration tests
+        working-directory: frontend-mfe
+        run: |
+          # Start all MFEs in the background
+          pnpm run serve:all &
+          SERVER_PID=$!
+          
+          # Wait for servers to start
+          sleep 10
+          
+          # Run integration tests
+          pnpm run test:integration
+          
+          # Stop servers
+          kill $SERVER_PID
+
+  deploy-preview:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: frontend-mfe/dist-artifacts
+      
+      - name: Deploy to preview environment
+        run: |
+          echo "Deploy preview builds to staging environment"
+          # Add actual deployment steps here (e.g., to Vercel, Netlify, AWS S3, etc.)
+      
+      - name: Comment PR with preview URLs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 Preview deployments ready:\n\n' +
+                    '- Shell App: https://preview-shell-${{ github.event.pull_request.number }}.example.com\n' +
+                    '- Menu MFE: https://preview-menu-${{ github.event.pull_request.number }}.example.com\n' +
+                    '- Orders MFE: https://preview-orders-${{ github.event.pull_request.number }}.example.com\n' +
+                    '- Kitchen MFE: https://preview-kitchen-${{ github.event.pull_request.number }}.example.com\n' +
+                    '- Inventory MFE: https://preview-inventory-${{ github.event.pull_request.number }}.example.com\n' +
+                    '- Reservations MFE: https://preview-reservations-${{ github.event.pull_request.number }}.example.com'
+            })
+
+  deploy-production:
+    needs: [build, integration-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: frontend-mfe/dist-artifacts
+      
+      - name: Deploy to production
+        run: |
+          echo "Deploy production builds"
+          # Add actual deployment steps here
+          # Example: Deploy to AWS S3 + CloudFront, Azure Static Web Apps, etc.
+      
+      - name: Purge CDN cache
+        run: |
+          echo "Purge CDN cache for updated MFEs"
+          # Add CDN cache purging commands here
+      
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          text: 'MFE Production Deployment ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

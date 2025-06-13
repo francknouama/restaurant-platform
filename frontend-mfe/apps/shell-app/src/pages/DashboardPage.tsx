@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '@restaurant/shared-ui';
 import { getRoleDisplayName, PermissionResources, PermissionActions } from '@restaurant/shared-utils';
+import { useRestaurantEvents, useNotifications } from '@restaurant/shared-state';
 
 const DashboardPage: React.FC = () => {
   const { user, canAccess } = useAuth();
+  const { onInventoryLowStock, onReservationCreated } = useRestaurantEvents();
+  const { showNotification } = useNotifications();
+  const [lowStockCount, setLowStockCount] = useState(23);
 
   const stats = [
     {
@@ -27,6 +31,13 @@ const DashboardPage: React.FC = () => {
       change: 'orders',
       icon: '👨‍🍳',
       permission: { resource: PermissionResources.KITCHEN, action: PermissionActions.READ },
+    },
+    {
+      title: 'Low Stock Items',
+      value: lowStockCount.toString(),
+      change: 'alerts',
+      icon: '📦',
+      permission: { resource: PermissionResources.INVENTORY, action: PermissionActions.READ },
     },
     {
       title: 'Today\'s Revenue',
@@ -64,17 +75,70 @@ const DashboardPage: React.FC = () => {
       permission: { resource: PermissionResources.MENU, action: PermissionActions.UPDATE },
     },
     {
+      title: 'Stock Alerts',
+      description: 'Check inventory alerts',
+      icon: '🚨',
+      path: '/inventory/alerts',
+      permission: { resource: PermissionResources.INVENTORY, action: PermissionActions.READ },
+    },
+    {
       title: 'Reservations',
       description: 'View today\'s bookings',
       icon: '📅',
       path: '/reservations',
       permission: { resource: PermissionResources.RESERVATION, action: PermissionActions.READ },
     },
+    {
+      title: 'Inventory',
+      description: 'Manage stock levels',
+      icon: '📦',
+      path: '/inventory',
+      permission: { resource: PermissionResources.INVENTORY, action: PermissionActions.READ },
+    },
   ];
 
   const visibleActions = quickActions.filter(action => 
     canAccess(action.permission.resource, action.permission.action)
   );
+
+  // Listen for inventory low stock alerts
+  useEffect(() => {
+    const unsubscribeLowStock = onInventoryLowStock((event) => {
+      console.log('[Dashboard] Low stock alert received:', event.payload);
+      
+      // Show notification
+      showNotification({
+        id: `low-stock-${event.payload.itemId}`,
+        type: event.payload.priority === 'urgent' ? 'error' : 'warning',
+        title: 'Low Stock Alert',
+        message: `${event.payload.itemName} is running low (${event.payload.currentStock} remaining)`,
+        duration: 5000,
+        timestamp: Date.now()
+      });
+      
+      // Update low stock count
+      setLowStockCount(prev => prev + 1);
+    });
+
+    const unsubscribeReservation = onReservationCreated((event) => {
+      console.log('[Dashboard] New reservation created:', event.payload);
+      
+      // Show notification
+      showNotification({
+        id: `reservation-${event.payload.reservationId}`,
+        type: 'info',
+        title: 'New Reservation',
+        message: `${event.payload.customerName} - Party of ${event.payload.partySize} at ${event.payload.time}`,
+        duration: 5000,
+        timestamp: Date.now()
+      });
+    });
+
+    return () => {
+      unsubscribeLowStock();
+      unsubscribeReservation();
+    };
+  }, [onInventoryLowStock, onReservationCreated, showNotification]);
 
   return (
     <div className="p-6 space-y-6">
@@ -151,6 +215,16 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
             <span className="text-neutral-600">Completed</span>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b">
+            <div className="flex items-center space-x-3">
+              <span className="text-xl">📦</span>
+              <div>
+                <p className="font-medium">Low stock alert</p>
+                <p className="text-sm text-neutral-600">Fresh Salmon Fillet • 3 lbs remaining</p>
+              </div>
+            </div>
+            <span className="text-amber-600">Action needed</span>
           </div>
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center space-x-3">

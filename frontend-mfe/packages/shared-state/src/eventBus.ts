@@ -52,6 +52,56 @@ export interface KitchenOrderUpdateEvent extends RestaurantEvent {
   };
 }
 
+export interface InventoryLowStockEvent extends RestaurantEvent {
+  type: 'INVENTORY_LOW_STOCK';
+  payload: {
+    itemId: string;
+    itemName: string;
+    currentStock: number;
+    minimumStock: number;
+    category: string;
+    priority: 'urgent' | 'high' | 'medium' | 'low';
+  };
+}
+
+export interface InventoryStockUpdatedEvent extends RestaurantEvent {
+  type: 'INVENTORY_STOCK_UPDATED';
+  payload: {
+    itemId: string;
+    itemName: string;
+    previousStock: number;
+    newStock: number;
+    updateType: 'consumption' | 'delivery' | 'adjustment' | 'purchase_order';
+    relatedOrderId?: string;
+  };
+}
+
+export interface ReservationCreatedEvent extends RestaurantEvent {
+  type: 'RESERVATION_CREATED';
+  payload: {
+    reservationId: string;
+    customerName: string;
+    partySize: number;
+    date: string;
+    time: string;
+    tableNumber?: number;
+    specialRequests?: string;
+  };
+}
+
+export interface ReservationUpdatedEvent extends RestaurantEvent {
+  type: 'RESERVATION_UPDATED';
+  payload: {
+    reservationId: string;
+    updates: {
+      status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'noshow';
+      tableNumber?: number;
+      partySize?: number;
+      time?: string;
+    };
+  };
+}
+
 class EventBus {
   private emitter: Emitter<Record<string, RestaurantEvent>>;
   private source: string;
@@ -142,6 +192,42 @@ class EventBus {
 
   onKitchenOrderUpdate(handler: (event: KitchenOrderUpdateEvent) => void): () => void {
     return this.on('KITCHEN_ORDER_UPDATE', handler as (event: RestaurantEvent) => void);
+  }
+
+  // Inventory event emitters
+  emitInventoryLowStock(payload: InventoryLowStockEvent['payload']) {
+    this.emit('INVENTORY_LOW_STOCK', payload);
+  }
+
+  emitInventoryStockUpdated(payload: InventoryStockUpdatedEvent['payload']) {
+    this.emit('INVENTORY_STOCK_UPDATED', payload, 'kitchen-mfe');
+  }
+
+  // Reservation event emitters
+  emitReservationCreated(payload: ReservationCreatedEvent['payload']) {
+    this.emit('RESERVATION_CREATED', payload, 'dashboard-mfe');
+  }
+
+  emitReservationUpdated(reservationId: string, updates: ReservationUpdatedEvent['payload']['updates']) {
+    this.emit('RESERVATION_UPDATED', { reservationId, updates });
+  }
+
+  // Inventory event listeners
+  onInventoryLowStock(handler: (event: InventoryLowStockEvent) => void): () => void {
+    return this.on('INVENTORY_LOW_STOCK', handler as (event: RestaurantEvent) => void);
+  }
+
+  onInventoryStockUpdated(handler: (event: InventoryStockUpdatedEvent) => void): () => void {
+    return this.on('INVENTORY_STOCK_UPDATED', handler as (event: RestaurantEvent) => void);
+  }
+
+  // Reservation event listeners
+  onReservationCreated(handler: (event: ReservationCreatedEvent) => void): () => void {
+    return this.on('RESERVATION_CREATED', handler as (event: RestaurantEvent) => void);
+  }
+
+  onReservationUpdated(handler: (event: ReservationUpdatedEvent) => void): () => void {
+    return this.on('RESERVATION_UPDATED', handler as (event: RestaurantEvent) => void);
   }
 }
 

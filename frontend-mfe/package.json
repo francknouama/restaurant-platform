@@ -19,8 +19,11 @@
     "lint:fix": "pnpm run --parallel lint:fix",
     "type-check": "pnpm run --parallel type-check",
     "test": "pnpm run --parallel test",
+    "test:integration": "pnpm run --filter @restaurant/shell-app test:integration",
     "clean": "pnpm run --parallel clean && rm -rf node_modules",
     "preview": "pnpm run --parallel preview",
+    "serve:all": "pnpm run --parallel serve",
+    "typecheck": "pnpm run --parallel type-check",
     "start": "pnpm run dev"
   },
   "devDependencies": {
