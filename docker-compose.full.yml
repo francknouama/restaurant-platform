@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # === INFRASTRUCTURE ===
   
@@ -210,6 +208,29 @@ services:
       - restaurant-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # === FRONTEND ===
+  
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.microservices
+    container_name: restaurant-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+    networks:
+      - restaurant-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3

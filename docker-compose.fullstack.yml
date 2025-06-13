@@ -1,4 +1,6 @@
 services:
+  # === INFRASTRUCTURE ===
+  
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -7,7 +9,7 @@ services:
       POSTGRES_DB: restaurant_platform
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres123
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --auth-host=md5"
     ports:
       - "5432:5432"
     volumes:
@@ -40,7 +42,9 @@ services:
       start_period: 10s
     command: redis-server --appendonly yes
 
-  # Backend API
+  # === BACKEND ===
+  
+  # Backend Monolith API
   backend:
     build:
       context: ./backend
@@ -73,12 +77,14 @@ services:
       - restaurant-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
+  # === FRONTEND ===
+  
   # Frontend React Application
   frontend:
     build:
@@ -88,8 +94,7 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - restaurant-network
     healthcheck:
@@ -99,24 +104,6 @@ services:
       retries: 3
       start_period: 40s
     restart: unless-stopped
-
-  # Database Migration Tool (optional)
-  migrate:
-    image: migrate/migrate:latest
-    container_name: restaurant-migrate
-    volumes:
-      - ./backend/migrations:/migrations
-    networks:
-      - restaurant-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: >
-      -path=/migrations
-      -database=postgres://postgres:postgres123@postgres:5432/restaurant_platform?sslmode=disable
-      up
-    profiles:
-      - migration
 
 volumes:
   postgres_data:
