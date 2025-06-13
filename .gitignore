@@ -1,3 +1,19 @@
 # Claude Code
 .claude/
 .env
+
+# Build binaries
+backend/bin/
+*/bin/
+bin/
+
+# Go workspace
+*.work.sum
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
