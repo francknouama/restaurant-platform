@@ -25,6 +25,9 @@ func (suite *MenuRepositoryTestSuite) TestCategorySerialization() {
 	// Given
 	testMenu, _ := menu.NewMenu("Test Menu")
 	category1, _ := testMenu.AddCategory("Appetizers", "Start your meal", 1)
+	
+	// Sleep for a second to ensure different timestamps for IDs (ID generation uses second precision)
+	time.Sleep(1 * time.Second)
 	category2, _ := testMenu.AddCategory("Mains", "Main courses", 2)
 	
 	// Add items to categories

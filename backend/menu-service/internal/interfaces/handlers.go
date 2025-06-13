@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"context"
 	"net/http"
 	"github.com/restaurant-platform/menu-service/internal/application"
 	menu "github.com/restaurant-platform/menu-service/internal/domain"
@@ -8,11 +9,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type MenuHandler struct {
-	menuService *application.MenuService
+// MenuServiceInterface defines the contract for menu service operations
+type MenuServiceInterface interface {
+	CreateMenu(ctx context.Context, name string) (*menu.Menu, error)
+	GetActiveMenu(ctx context.Context) (*menu.Menu, error)
+	GetMenuByID(ctx context.Context, id string) (*menu.Menu, error)
+	GetMenus(ctx context.Context, offset, limit int) ([]*menu.Menu, int, error)
+	GetAvailableItems(ctx context.Context) ([]*menu.MenuItem, error)
+	GetMenuItem(ctx context.Context, id menu.ItemID) (*menu.MenuItem, error)
+	AddCategoryToMenu(ctx context.Context, menuID, name, description string, displayOrder int) (*menu.MenuCategory, error)
+	AddItemToCategory(ctx context.Context, menuID string, categoryID menu.CategoryID, name, description string, price float64) (*menu.MenuItem, error)
+	SetItemAvailability(ctx context.Context, menuID string, itemID menu.ItemID, isAvailable bool) error
+	ActivateMenu(ctx context.Context, menuID string) error
+	DeactivateMenu(ctx context.Context, menuID string) error
 }
 
-func NewMenuHandler(menuService *application.MenuService) *MenuHandler {
+type MenuHandler struct {
+	menuService MenuServiceInterface
+}
+
+func NewMenuHandler(menuService MenuServiceInterface) *MenuHandler {
 	return &MenuHandler{
 		menuService: menuService,
 	}
