@@ -435,16 +435,19 @@ func (suite *KitchenOrderRepositoryTestSuite) TestList_WithPagination() {
 
 func (suite *KitchenOrderRepositoryTestSuite) TestList_WithDateFilters() {
 	// Given - Create orders at different times
-	now := time.Now()
+	now := time.Now().Truncate(time.Second) // Truncate to avoid precision issues
 	
 	order1, _ := domain.NewKitchenOrder("order-1", "table-1")
 	order1.CreatedAt = now.Add(-3 * time.Hour)
+	order1.UpdatedAt = order1.CreatedAt // Also update UpdatedAt to match
 	
 	order2, _ := domain.NewKitchenOrder("order-2", "table-2")
 	order2.CreatedAt = now.Add(-1 * time.Hour)
+	order2.UpdatedAt = order2.CreatedAt // Also update UpdatedAt to match
 	
 	order3, _ := domain.NewKitchenOrder("order-3", "table-3")
 	order3.CreatedAt = now
+	order3.UpdatedAt = order3.CreatedAt // Also update UpdatedAt to match
 
 	suite.repo.Save(suite.ctx, order1)
 	suite.repo.Save(suite.ctx, order2)
@@ -461,10 +464,22 @@ func (suite *KitchenOrderRepositoryTestSuite) TestList_WithDateFilters() {
 	// Then
 	assert := assert.New(suite.T())
 	assert.NoError(err)
+	
+	// Debug: Let's see what we actually got
+	if len(orders) != 2 {
+		fmt.Printf("Expected 2 orders, got %d\n", len(orders))
+		fmt.Printf("DateFrom: %v\n", dateFrom)
+		for i, order := range orders {
+			fmt.Printf("Order %d: %s, CreatedAt: %v\n", i, order.OrderID, order.CreatedAt)
+		}
+	}
+	
 	assert.Len(orders, 2) // Only order2 and order3
 	assert.Equal(2, totalCount)
-	assert.Equal("order-2", orders[0].OrderID)
-	assert.Equal("order-3", orders[1].OrderID)
+	if len(orders) >= 2 {
+		assert.Equal("order-2", orders[0].OrderID)
+		assert.Equal("order-3", orders[1].OrderID)
+	}
 }
 
 // Test Count operation

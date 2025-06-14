@@ -413,14 +413,24 @@ func (suite *KitchenOrderTestSuite) TestUpdateOrderStatus_AllItemsReady() {
 	kitchenOrder.AddItem("item-1", "Item 1", 1, 10*time.Minute, nil, "")
 	kitchenOrder.AddItem("item-2", "Item 2", 1, 15*time.Minute, nil, "")
 	
+	assert := assert.New(suite.T())
+	
+	// Initially NEW
+	assert.Equal(KitchenOrderStatusNew, kitchenOrder.Status)
+	
 	// When - Transition items through proper workflow: NEW -> PREPARING -> READY
 	kitchenOrder.UpdateItemStatus(kitchenOrder.Items[0].ID, KitchenItemStatusPreparing)
+	assert.Equal(KitchenOrderStatusPreparing, kitchenOrder.Status) // Should be PREPARING now
+	
 	kitchenOrder.UpdateItemStatus(kitchenOrder.Items[0].ID, KitchenItemStatusReady)
+	assert.Equal(KitchenOrderStatusPreparing, kitchenOrder.Status) // Should still be PREPARING (one item still NEW)
+	
 	kitchenOrder.UpdateItemStatus(kitchenOrder.Items[1].ID, KitchenItemStatusPreparing)
+	assert.Equal(KitchenOrderStatusPreparing, kitchenOrder.Status) // Should still be PREPARING
+	
 	kitchenOrder.UpdateItemStatus(kitchenOrder.Items[1].ID, KitchenItemStatusReady)
-
+	
 	// Then - Order should automatically become ready when all items are ready
-	assert := assert.New(suite.T())
 	assert.Equal(KitchenOrderStatusReady, kitchenOrder.Status)
 }
 
@@ -803,8 +813,13 @@ func (suite *KitchenOrderTestSuite) TestRecalculateEstimatedTime_ExcludesReadyIt
 	kitchenOrder.UpdateItemStatus(kitchenOrder.Items[2].ID, KitchenItemStatusPreparing)
 	kitchenOrder.UpdateItemStatus(kitchenOrder.Items[2].ID, KitchenItemStatusReady)
 
-	// Then - Should be 20 minutes (only item-2 is active)
+	// Debug: Check item statuses
 	assert := assert.New(suite.T())
+	assert.Equal(KitchenItemStatusReady, kitchenOrder.Items[0].Status) // item-1 should be ready
+	assert.Equal(KitchenItemStatusNew, kitchenOrder.Items[1].Status)   // item-2 should still be new
+	assert.Equal(KitchenItemStatusReady, kitchenOrder.Items[2].Status) // item-3 should be ready
+	
+	// Then - Should be 20 minutes (only item-2 is active)
 	assert.Equal(20*time.Minute, kitchenOrder.EstimatedTime)
 }
 

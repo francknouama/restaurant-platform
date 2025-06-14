@@ -156,15 +156,15 @@ func (r *PostgreSQLUserRepository) GetUserWithRole(ctx context.Context, id domai
 func (r *PostgreSQLUserRepository) UpdateUser(ctx context.Context, user *domain.User) error {
 	query := `
 		UPDATE users 
-		SET email = $2, role_id = $3, is_active = $4, updated_at = $5
-		WHERE id = $1`
+		SET email = ?, role_id = ?, is_active = ?, updated_at = ?
+		WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query,
-		user.ID.String(),
 		user.Email,
 		user.RoleID.String(),
 		user.IsActive,
 		time.Now(),
+		user.ID.String(),
 	)
 
 	if err != nil {
@@ -189,10 +189,10 @@ func (r *PostgreSQLUserRepository) UpdateUser(ctx context.Context, user *domain.
 func (r *PostgreSQLUserRepository) UpdateUserPassword(ctx context.Context, id domain.UserID, passwordHash string) error {
 	query := `
 		UPDATE users 
-		SET password_hash = $2, updated_at = $3
-		WHERE id = $1`
+		SET password_hash = ?, updated_at = ?
+		WHERE id = ?`
 
-	result, err := r.db.ExecContext(ctx, query, id.String(), passwordHash, time.Now())
+	result, err := r.db.ExecContext(ctx, query, passwordHash, time.Now(), id.String())
 	if err != nil {
 		return fmt.Errorf("failed to update user password: %w", err)
 	}
@@ -212,10 +212,10 @@ func (r *PostgreSQLUserRepository) UpdateUserPassword(ctx context.Context, id do
 func (r *PostgreSQLUserRepository) UpdateUserLastLogin(ctx context.Context, id domain.UserID, lastLoginAt time.Time) error {
 	query := `
 		UPDATE users 
-		SET last_login_at = $2, updated_at = $3
-		WHERE id = $1`
+		SET last_login_at = ?, updated_at = ?
+		WHERE id = ?`
 
-	result, err := r.db.ExecContext(ctx, query, id.String(), lastLoginAt, time.Now())
+	result, err := r.db.ExecContext(ctx, query, lastLoginAt, time.Now(), id.String())
 	if err != nil {
 		return fmt.Errorf("failed to update user last login: %w", err)
 	}
@@ -861,7 +861,7 @@ func (r *PostgreSQLUserRepository) GetActiveSessionsByUserID(ctx context.Context
 	query := `
 		SELECT id, user_id, token_hash, refresh_token_hash, expires_at, ip_address, user_agent, is_active, created_at, updated_at
 		FROM user_sessions 
-		WHERE user_id = $1 AND is_active = TRUE AND expires_at > CURRENT_TIMESTAMP
+		WHERE user_id = ? AND is_active = TRUE AND expires_at > CURRENT_TIMESTAMP
 		ORDER BY created_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID.String())
@@ -903,16 +903,16 @@ func (r *PostgreSQLUserRepository) GetActiveSessionsByUserID(ctx context.Context
 func (r *PostgreSQLUserRepository) UpdateSession(ctx context.Context, session *domain.UserSession) error {
 	query := `
 		UPDATE user_sessions 
-		SET token_hash = $2, refresh_token_hash = $3, expires_at = $4, is_active = $5, updated_at = $6
-		WHERE id = $1`
+		SET token_hash = ?, refresh_token_hash = ?, expires_at = ?, is_active = ?, updated_at = ?
+		WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query,
-		session.ID.String(),
 		session.TokenHash,
 		session.RefreshToken,
 		session.ExpiresAt,
 		session.IsActive,
 		time.Now(),
+		session.ID.String(),
 	)
 
 	if err != nil {
@@ -934,10 +934,10 @@ func (r *PostgreSQLUserRepository) UpdateSession(ctx context.Context, session *d
 func (r *PostgreSQLUserRepository) InvalidateSession(ctx context.Context, id domain.UserSessionID) error {
 	query := `
 		UPDATE user_sessions 
-		SET is_active = FALSE, updated_at = $2
-		WHERE id = $1`
+		SET is_active = FALSE, updated_at = ?
+		WHERE id = ?`
 
-	result, err := r.db.ExecContext(ctx, query, id.String(), time.Now())
+	result, err := r.db.ExecContext(ctx, query, time.Now(), id.String())
 	if err != nil {
 		return fmt.Errorf("failed to invalidate session: %w", err)
 	}

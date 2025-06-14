@@ -401,8 +401,8 @@ func (suite *AuthServiceTestSuite) TestLogin_Success() {
 	suite.mockRepo.On("GetUserByEmail", suite.ctx, email).Return(user, nil)
 	suite.mockPassword.On("ComparePassword", password, "hashed_password").Return(true)
 	suite.mockRepo.On("GetUserWithRole", suite.ctx, userID).Return(userWithRole, nil)
-	suite.mockJWT.On("GenerateToken", user, mock.AnythingOfType("domain.UserSessionID")).Return(accessToken, expiresAt, nil)
-	suite.mockJWT.On("GenerateRefreshToken", user, mock.AnythingOfType("domain.UserSessionID")).Return(refreshToken, expiresAt, nil)
+	suite.mockJWT.On("GenerateToken", user, mock.AnythingOfType("types.ID[github.com/restaurant-platform/user-service/internal/domain.UserSessionEntity]")).Return(accessToken, expiresAt, nil)
+	suite.mockJWT.On("GenerateRefreshToken", user, mock.AnythingOfType("types.ID[github.com/restaurant-platform/user-service/internal/domain.UserSessionEntity]")).Return(refreshToken, expiresAt, nil)
 	suite.mockRepo.On("CreateSession", suite.ctx, mock.AnythingOfType("*domain.UserSession")).Return(nil)
 	suite.mockRepo.On("UpdateUserLastLogin", suite.ctx, userID, mock.AnythingOfType("time.Time")).Return(nil)
 

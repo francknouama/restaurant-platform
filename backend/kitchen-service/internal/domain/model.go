@@ -285,6 +285,7 @@ func (ko *KitchenOrder) updateOrderStatus() {
 	}
 
 	// Update order status based on items (check most specific first)
+	oldStatus := ko.Status
 	if allCancelled {
 		ko.Status = KitchenOrderStatusCancelled
 	} else if allReadyOrCancelled && anyReady {
@@ -292,6 +293,12 @@ func (ko *KitchenOrder) updateOrderStatus() {
 		ko.Status = KitchenOrderStatusReady
 	} else if anyPreparing {
 		ko.Status = KitchenOrderStatusPreparing
+	}
+	
+	// Debug print for tests
+	if oldStatus != ko.Status {
+		// fmt.Printf("Order status updated from %s to %s (allCancelled=%t, allReadyOrCancelled=%t, anyPreparing=%t, anyReady=%t)\n", 
+		//     oldStatus, ko.Status, allCancelled, allReadyOrCancelled, anyPreparing, anyReady)
 	}
 }
 
