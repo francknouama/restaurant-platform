@@ -1,0 +1,42 @@
+meta {
+  name: 4. Update Order Status to PAID
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/orders/{{orderId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "PAID"
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Order status is updated to PAID", function() {
+    expect(res.body.status).to.equal("PAID");
+  });
+  
+  test("Updated timestamp is recent", function() {
+    const updatedAt = new Date(res.body.updated_at);
+    const now = new Date();
+    const diffInSeconds = (now - updatedAt) / 1000;
+    expect(diffInSeconds).to.be.lessThan(60);
+  });
+  
+  test("Order ID is preserved", function() {
+    expect(res.body.order_id).to.equal(bru.getEnvVar("orderId"));
+  });
+}

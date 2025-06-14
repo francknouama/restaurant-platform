@@ -1,0 +1,38 @@
+meta {
+  name: 9. Filter Orders by Type
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/orders?order_type=DINE_IN
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response is an array", function() {
+    expect(res.body).to.be.an('array');
+  });
+  
+  test("All returned orders have DINE_IN type", function() {
+    res.body.forEach(order => {
+      expect(order.order_type).to.equal("DINE_IN");
+    });
+  });
+  
+  test("Recently created order is in the list", function() {
+    const orderId = bru.getEnvVar("orderId");
+    const foundOrder = res.body.find(order => order.order_id === orderId);
+    expect(foundOrder).to.not.be.undefined;
+    expect(foundOrder.order_type).to.equal("DINE_IN");
+  });
+}

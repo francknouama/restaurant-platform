@@ -1,0 +1,38 @@
+meta {
+  name: 8. Filter Orders by Status
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/orders?status=COMPLETED
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response is an array", function() {
+    expect(res.body).to.be.an('array');
+  });
+  
+  test("All returned orders have COMPLETED status", function() {
+    res.body.forEach(order => {
+      expect(order.status).to.equal("COMPLETED");
+    });
+  });
+  
+  test("Recently completed order is in the list", function() {
+    const orderId = bru.getEnvVar("orderId");
+    const foundOrder = res.body.find(order => order.order_id === orderId);
+    expect(foundOrder).to.not.be.undefined;
+    expect(foundOrder.status).to.equal("COMPLETED");
+  });
+}

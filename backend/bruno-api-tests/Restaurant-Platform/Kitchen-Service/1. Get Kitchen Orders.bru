@@ -1,0 +1,35 @@
+meta {
+  name: 1. Get Kitchen Orders
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/kitchen/orders
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response is an array", function() {
+    expect(res.body).to.be.an('array');
+  });
+  
+  test("Each kitchen order has required fields", function() {
+    res.body.forEach(order => {
+      expect(order).to.have.property('order_id');
+      expect(order).to.have.property('items');
+      expect(order).to.have.property('priority');
+      expect(order).to.have.property('estimated_completion');
+      expect(order).to.have.property('created_at');
+    });
+  });
+}

@@ -1,0 +1,38 @@
+meta {
+  name: 4. Activate Menu
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/menus/{{menuId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "is_active": true
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Menu is activated", function() {
+    expect(res.body.is_active).to.equal(true);
+  });
+  
+  test("Updated timestamp is recent", function() {
+    const updatedAt = new Date(res.body.updated_at);
+    const now = new Date();
+    const diffInSeconds = (now - updatedAt) / 1000;
+    expect(diffInSeconds).to.be.lessThan(60); // Within the last minute
+  });
+}

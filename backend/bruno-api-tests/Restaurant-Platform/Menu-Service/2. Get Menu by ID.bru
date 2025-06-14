@@ -1,0 +1,42 @@
+meta {
+  name: 2. Get Menu by ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/menus/{{menuId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response has correct menu_id", function() {
+    expect(res.body.menu_id).to.equal(bru.getEnvVar("menuId"));
+  });
+  
+  test("Menu structure is complete", function() {
+    expect(res.body).to.have.property('menu_id');
+    expect(res.body).to.have.property('menu_name');
+    expect(res.body).to.have.property('categories');
+    expect(res.body).to.have.property('is_active');
+    expect(res.body).to.have.property('created_at');
+    expect(res.body).to.have.property('updated_at');
+  });
+  
+  test("Categories have items", function() {
+    expect(res.body.categories).to.be.an('array');
+    res.body.categories.forEach(category => {
+      expect(category).to.have.property('items');
+      expect(category.items).to.be.an('array');
+    });
+  });
+}

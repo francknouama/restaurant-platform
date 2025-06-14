@@ -1,0 +1,101 @@
+meta {
+  name: 1. Create Order
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/orders
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "customer_name": "John Doe",
+    "customer_email": "john.doe@example.com",
+    "customer_phone": "555-0123",
+    "order_type": "DINE_IN",
+    "table_number": 12,
+    "items": [
+      {
+        "menu_item_id": "item_spring_rolls",
+        "quantity": 2,
+        "special_requests": "Extra sauce on the side"
+      },
+      {
+        "menu_item_id": "item_grilled_salmon",
+        "quantity": 1,
+        "special_requests": "Medium rare, no lemon"
+      },
+      {
+        "menu_item_id": "item_chocolate_cake",
+        "quantity": 1,
+        "special_requests": ""
+      }
+    ],
+    "special_instructions": "Customer has nut allergy"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const order = res.body;
+    bru.setEnvVar("orderId", order.order_id);
+    console.log("Order created with ID:", order.order_id);
+    console.log("Total amount:", order.total_amount);
+  }
+}
+
+tests {
+  test("Status code is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  
+  test("Response has order_id", function() {
+    expect(res.body).to.have.property('order_id');
+  });
+  
+  test("Order has correct customer info", function() {
+    expect(res.body.customer_name).to.equal("John Doe");
+    expect(res.body.customer_email).to.equal("john.doe@example.com");
+    expect(res.body.customer_phone).to.equal("555-0123");
+  });
+  
+  test("Order type is correct", function() {
+    expect(res.body.order_type).to.equal("DINE_IN");
+  });
+  
+  test("Table number is set", function() {
+    expect(res.body.table_number).to.equal(12);
+  });
+  
+  test("Order has items", function() {
+    expect(res.body.items).to.be.an('array');
+    expect(res.body.items).to.have.length(3);
+  });
+  
+  test("Order has total amount", function() {
+    expect(res.body).to.have.property('total_amount');
+    expect(res.body.total_amount).to.be.a('number');
+    expect(res.body.total_amount).to.be.greaterThan(0);
+  });
+  
+  test("Tax is calculated", function() {
+    expect(res.body).to.have.property('tax_amount');
+    expect(res.body.tax_amount).to.be.a('number');
+  });
+  
+  test("Status is CREATED", function() {
+    expect(res.body.status).to.equal("CREATED");
+  });
+  
+  test("Created and updated timestamps exist", function() {
+    expect(res.body).to.have.property('created_at');
+    expect(res.body).to.have.property('updated_at');
+  });
+}

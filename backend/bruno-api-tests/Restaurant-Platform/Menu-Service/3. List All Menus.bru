@@ -1,0 +1,44 @@
+meta {
+  name: 3. List All Menus
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/menus
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response is an array", function() {
+    expect(res.body).to.be.an('array');
+  });
+  
+  test("At least one menu exists", function() {
+    expect(res.body.length).to.be.greaterThan(0);
+  });
+  
+  test("Each menu has required fields", function() {
+    res.body.forEach(menu => {
+      expect(menu).to.have.property('menu_id');
+      expect(menu).to.have.property('menu_name');
+      expect(menu).to.have.property('is_active');
+      expect(menu).to.have.property('created_at');
+    });
+  });
+  
+  test("Recently created menu is in the list", function() {
+    const menuId = bru.getEnvVar("menuId");
+    const foundMenu = res.body.find(menu => menu.menu_id === menuId);
+    expect(foundMenu).to.not.be.undefined;
+  });
+}

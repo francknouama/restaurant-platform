@@ -1,0 +1,31 @@
+meta {
+  name: 6. Get Active Menus
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/menus?active=true
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response is an array", function() {
+    expect(res.body).to.be.an('array');
+  });
+  
+  test("All returned menus are active", function() {
+    res.body.forEach(menu => {
+      expect(menu.is_active).to.equal(true);
+    });
+  });
+}

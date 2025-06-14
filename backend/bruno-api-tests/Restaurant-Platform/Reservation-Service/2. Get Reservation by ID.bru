@@ -1,0 +1,38 @@
+meta {
+  name: 2. Get Reservation by ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reservations/{{reservationId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response has correct reservation_id", function() {
+    expect(res.body.reservation_id).to.equal(bru.getEnvVar("reservationId"));
+  });
+  
+  test("Reservation structure is complete", function() {
+    expect(res.body).to.have.property('reservation_id');
+    expect(res.body).to.have.property('customer_name');
+    expect(res.body).to.have.property('customer_email');
+    expect(res.body).to.have.property('customer_phone');
+    expect(res.body).to.have.property('party_size');
+    expect(res.body).to.have.property('reservation_date');
+    expect(res.body).to.have.property('reservation_time');
+    expect(res.body).to.have.property('status');
+    expect(res.body).to.have.property('created_at');
+    expect(res.body).to.have.property('updated_at');
+  });
+}

@@ -1,0 +1,49 @@
+meta {
+  name: 2. Get Order by ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/orders/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response has correct order_id", function() {
+    expect(res.body.order_id).to.equal(bru.getEnvVar("orderId"));
+  });
+  
+  test("Order structure is complete", function() {
+    expect(res.body).to.have.property('order_id');
+    expect(res.body).to.have.property('customer_name');
+    expect(res.body).to.have.property('customer_email');
+    expect(res.body).to.have.property('customer_phone');
+    expect(res.body).to.have.property('order_type');
+    expect(res.body).to.have.property('status');
+    expect(res.body).to.have.property('items');
+    expect(res.body).to.have.property('total_amount');
+    expect(res.body).to.have.property('tax_amount');
+    expect(res.body).to.have.property('created_at');
+    expect(res.body).to.have.property('updated_at');
+  });
+  
+  test("Items have detailed information", function() {
+    expect(res.body.items).to.be.an('array');
+    res.body.items.forEach(item => {
+      expect(item).to.have.property('menu_item_id');
+      expect(item).to.have.property('quantity');
+      expect(item).to.have.property('unit_price');
+      expect(item).to.have.property('total_price');
+    });
+  });
+}

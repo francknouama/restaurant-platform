@@ -1,0 +1,38 @@
+meta {
+  name: 7. Update Order Status to COMPLETED
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/orders/{{orderId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "COMPLETED"
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Order status is updated to COMPLETED", function() {
+    expect(res.body.status).to.equal("COMPLETED");
+  });
+  
+  test("Updated timestamp is recent", function() {
+    const updatedAt = new Date(res.body.updated_at);
+    const now = new Date();
+    const diffInSeconds = (now - updatedAt) / 1000;
+    expect(diffInSeconds).to.be.lessThan(60);
+  });
+}

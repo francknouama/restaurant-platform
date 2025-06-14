@@ -1,0 +1,69 @@
+meta {
+  name: 1. Create Reservation
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/reservations
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "customer_name": "Jane Smith",
+    "customer_email": "jane.smith@example.com",
+    "customer_phone": "555-0187",
+    "party_size": 4,
+    "reservation_date": "2025-06-20",
+    "reservation_time": "19:30",
+    "special_requests": "Window table preferred, celebrating anniversary"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const reservation = res.body;
+    bru.setEnvVar("reservationId", reservation.reservation_id);
+    console.log("Reservation created with ID:", reservation.reservation_id);
+  }
+}
+
+tests {
+  test("Status code is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  
+  test("Response has reservation_id", function() {
+    expect(res.body).to.have.property('reservation_id');
+  });
+  
+  test("Customer information is correct", function() {
+    expect(res.body.customer_name).to.equal("Jane Smith");
+    expect(res.body.customer_email).to.equal("jane.smith@example.com");
+    expect(res.body.customer_phone).to.equal("555-0187");
+  });
+  
+  test("Reservation details are correct", function() {
+    expect(res.body.party_size).to.equal(4);
+    expect(res.body.reservation_date).to.equal("2025-06-20");
+    expect(res.body.reservation_time).to.equal("19:30");
+  });
+  
+  test("Status is CONFIRMED", function() {
+    expect(res.body.status).to.equal("CONFIRMED");
+  });
+  
+  test("Special requests are saved", function() {
+    expect(res.body.special_requests).to.equal("Window table preferred, celebrating anniversary");
+  });
+  
+  test("Created timestamp exists", function() {
+    expect(res.body).to.have.property('created_at');
+  });
+}

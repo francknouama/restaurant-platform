@@ -1,0 +1,38 @@
+meta {
+  name: 3. Update Reservation Status
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/reservations/{{reservationId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "SEATED"
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Reservation status is updated", function() {
+    expect(res.body.status).to.equal("SEATED");
+  });
+  
+  test("Updated timestamp is recent", function() {
+    const updatedAt = new Date(res.body.updated_at);
+    const now = new Date();
+    const diffInSeconds = (now - updatedAt) / 1000;
+    expect(diffInSeconds).to.be.lessThan(60);
+  });
+}

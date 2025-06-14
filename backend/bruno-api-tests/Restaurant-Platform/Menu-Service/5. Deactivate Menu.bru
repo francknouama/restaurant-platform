@@ -1,0 +1,35 @@
+meta {
+  name: 5. Deactivate Menu
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/menus/{{menuId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "is_active": false
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Menu is deactivated", function() {
+    expect(res.body.is_active).to.equal(false);
+  });
+  
+  test("Menu ID is preserved", function() {
+    expect(res.body.menu_id).to.equal(bru.getEnvVar("menuId"));
+  });
+}

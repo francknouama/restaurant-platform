@@ -1,0 +1,45 @@
+meta {
+  name: 3. List All Orders
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/orders
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response is an array", function() {
+    expect(res.body).to.be.an('array');
+  });
+  
+  test("At least one order exists", function() {
+    expect(res.body.length).to.be.greaterThan(0);
+  });
+  
+  test("Each order has required fields", function() {
+    res.body.forEach(order => {
+      expect(order).to.have.property('order_id');
+      expect(order).to.have.property('customer_name');
+      expect(order).to.have.property('status');
+      expect(order).to.have.property('total_amount');
+      expect(order).to.have.property('created_at');
+    });
+  });
+  
+  test("Recently created order is in the list", function() {
+    const orderId = bru.getEnvVar("orderId");
+    const foundOrder = res.body.find(order => order.order_id === orderId);
+    expect(foundOrder).to.not.be.undefined;
+  });
+}

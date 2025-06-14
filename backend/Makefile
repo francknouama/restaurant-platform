@@ -147,6 +147,74 @@ setup: install-tools deps
 	@echo "  make logs               - Show service logs"
 	@echo "  make help               - Show detailed help"
 
+# Performance testing targets
+.PHONY: perf-setup perf-smoke perf-load perf-stress perf-spike perf-all perf-clean perf-dashboard
+
+# Setup performance testing environment
+perf-setup:
+	@echo "Setting up performance testing environment..."
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml up -d postgres redis influxdb grafana
+	@echo "Waiting for services to be ready..."
+	@sleep 10
+	@echo "Performance testing environment ready"
+	@echo "Grafana available at: http://localhost:3001 (admin/admin123)"
+
+# Run smoke tests (minimal load)
+perf-smoke: perf-setup
+	@echo "Running smoke tests..."
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml up -d backend
+	@sleep 5
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml run --rm \
+		-e TEST_SCRIPT=scripts/menu-service.js \
+		k6 run --vus 1 --duration 30s \
+		--out influxdb=http://influxdb:8086/k6 \
+		/tests/scripts/menu-service.js
+
+# Run load tests (normal load)
+perf-load: perf-setup
+	@echo "Running load tests..."
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml up -d backend
+	@sleep 5
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml run --rm \
+		-e TEST_SCRIPT=scripts/menu-service.js k6
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml run --rm \
+		-e TEST_SCRIPT=scripts/order-service.js k6
+
+# Run stress tests (high load)
+perf-stress: perf-setup
+	@echo "Running stress tests..."
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml up -d backend
+	@sleep 5
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml run --rm \
+		-e TEST_SCRIPT=scenarios/full-workflow.js k6
+
+# Run spike tests (sudden load)
+perf-spike: perf-setup
+	@echo "Running spike tests..."
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml up -d backend
+	@sleep 5
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml run --rm \
+		-e TEST_SCRIPT=scenarios/spike-test.js k6
+
+# Run all performance tests
+perf-all: perf-smoke perf-load perf-stress perf-spike
+	@echo "All performance tests completed"
+
+# Open Grafana dashboard
+perf-dashboard:
+	@echo "Opening Grafana dashboard..."
+	@open http://localhost:3001 || xdg-open http://localhost:3001 || echo "Open http://localhost:3001 in your browser"
+
+# Clean up performance testing environment
+perf-clean:
+	@echo "Cleaning up performance testing environment..."
+	@cd performance_tests && docker-compose -f docker-compose.perf.yml down -v
+	@echo "Performance testing environment cleaned"
+
+# Interactive performance test runner
+perf-interactive:
+	@cd performance_tests && ./run-tests.sh
+
 # Show help
 help:
 	@echo "Restaurant Platform Microservices Makefile"
@@ -168,6 +236,17 @@ help:
 	@echo "  Testing:"
 	@echo "    test             Test all microservices"
 	@echo "    check            Full quality check (fmt, lint, test)"
+	@echo ""
+	@echo "  Performance Testing:"
+	@echo "    perf-setup       Setup performance testing environment"
+	@echo "    perf-smoke       Run smoke tests (1 VU, 30s)"
+	@echo "    perf-load        Run load tests (normal load)"
+	@echo "    perf-stress      Run stress tests (high load)"
+	@echo "    perf-spike       Run spike tests (sudden load)"
+	@echo "    perf-all         Run all performance tests"
+	@echo "    perf-dashboard   Open Grafana dashboard"
+	@echo "    perf-clean       Clean up performance environment"
+	@echo "    perf-interactive Run interactive test selector"
 	@echo ""
 	@echo "  Code Quality:"
 	@echo "    fmt              Format code for all services"
@@ -200,3 +279,9 @@ help:
 	@echo "  make logs                               # View service logs"
 	@echo "  make db-migrate DB_PASSWORD=mypass      # Run migrations"
 	@echo "  make check                              # Full quality check"
+	@echo ""
+	@echo "  Performance Testing:"
+	@echo "  make perf-smoke                         # Quick smoke test"
+	@echo "  make perf-load                          # Normal load test"
+	@echo "  make perf-all                           # Run all tests"
+	@echo "  make perf-dashboard                     # View results in Grafana"

@@ -1,0 +1,152 @@
+meta {
+  name: 1. Create Menu
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/menus
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "menu_name": "Summer Menu 2025",
+    "categories": [
+      {
+        "id": "cat_appetizers",
+        "name": "Appetizers",
+        "description": "Start your meal with our delicious appetizers",
+        "items": [
+          {
+            "id": "item_spring_rolls",
+            "name": "Vegetable Spring Rolls",
+            "description": "Crispy spring rolls filled with fresh vegetables",
+            "price": 8.99,
+            "available": true,
+            "preparation_time": 10,
+            "dietary_info": ["vegetarian", "vegan"],
+            "allergens": ["gluten"],
+            "calories": 220
+          },
+          {
+            "id": "item_calamari",
+            "name": "Fried Calamari",
+            "description": "Golden fried calamari rings with marinara sauce",
+            "price": 12.99,
+            "available": true,
+            "preparation_time": 12,
+            "dietary_info": [],
+            "allergens": ["seafood", "gluten"],
+            "calories": 380
+          }
+        ]
+      },
+      {
+        "id": "cat_main_courses",
+        "name": "Main Courses",
+        "description": "Hearty main dishes to satisfy your appetite",
+        "items": [
+          {
+            "id": "item_grilled_salmon",
+            "name": "Grilled Atlantic Salmon",
+            "description": "Fresh salmon fillet with lemon herb butter",
+            "price": 24.99,
+            "available": true,
+            "preparation_time": 20,
+            "dietary_info": ["gluten-free"],
+            "allergens": ["fish"],
+            "calories": 420
+          },
+          {
+            "id": "item_ribeye_steak",
+            "name": "Ribeye Steak",
+            "description": "12oz prime ribeye with garlic mashed potatoes",
+            "price": 32.99,
+            "available": true,
+            "preparation_time": 25,
+            "dietary_info": ["gluten-free"],
+            "allergens": ["dairy"],
+            "calories": 780
+          },
+          {
+            "id": "item_pasta_primavera",
+            "name": "Pasta Primavera",
+            "description": "Fresh vegetables tossed with penne in olive oil",
+            "price": 16.99,
+            "available": true,
+            "preparation_time": 15,
+            "dietary_info": ["vegetarian"],
+            "allergens": ["gluten"],
+            "calories": 520
+          }
+        ]
+      },
+      {
+        "id": "cat_desserts",
+        "name": "Desserts",
+        "description": "Sweet endings to your meal",
+        "items": [
+          {
+            "id": "item_chocolate_cake",
+            "name": "Chocolate Lava Cake",
+            "description": "Warm chocolate cake with molten center",
+            "price": 7.99,
+            "available": true,
+            "preparation_time": 10,
+            "dietary_info": [],
+            "allergens": ["gluten", "dairy", "eggs"],
+            "calories": 480
+          },
+          {
+            "id": "item_cheesecake",
+            "name": "New York Cheesecake",
+            "description": "Classic cheesecake with berry compote",
+            "price": 6.99,
+            "available": true,
+            "preparation_time": 5,
+            "dietary_info": [],
+            "allergens": ["dairy", "eggs", "gluten"],
+            "calories": 420
+          }
+        ]
+      }
+    ]
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const menu = res.body;
+    bru.setEnvVar("menuId", menu.menu_id);
+    console.log("Menu created with ID:", menu.menu_id);
+  }
+}
+
+tests {
+  test("Status code is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  
+  test("Response has menu_id", function() {
+    expect(res.body).to.have.property('menu_id');
+  });
+  
+  test("Menu is created with correct name", function() {
+    expect(res.body.menu_name).to.equal("Summer Menu 2025");
+  });
+  
+  test("Menu has categories", function() {
+    expect(res.body.categories).to.be.an('array');
+    expect(res.body.categories).to.have.length(3);
+  });
+  
+  test("Menu is inactive by default", function() {
+    expect(res.body.is_active).to.equal(false);
+  });
+}

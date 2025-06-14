@@ -1,0 +1,46 @@
+meta {
+  name: 3. Get User Profile
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response has user profile", function() {
+    expect(res.body).to.have.property('user_id');
+    expect(res.body).to.have.property('username');
+    expect(res.body).to.have.property('email');
+    expect(res.body).to.have.property('full_name');
+    expect(res.body).to.have.property('phone');
+  });
+  
+  test("Email matches registered email", function() {
+    expect(res.body.email).to.equal(bru.getEnvVar("userEmail"));
+  });
+  
+  test("Password is not included", function() {
+    expect(res.body).to.not.have.property('password');
+  });
+  
+  test("User has roles", function() {
+    expect(res.body).to.have.property('roles');
+    expect(res.body.roles).to.be.an('array');
+  });
+}
