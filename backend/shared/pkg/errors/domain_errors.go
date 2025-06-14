@@ -120,7 +120,7 @@ func IsUnauthorizedError(err error) bool {
 // WrapNotFound wraps an error as a not found error with context
 func WrapNotFound(op, resource, id string, err error) error {
 	return NewDomainError(op, "NOT_FOUND", 
-		fmt.Sprintf("%s with id %s not found", resource, id), err).
+		fmt.Sprintf("%s with id %s not found", resource, id), fmt.Errorf("%w", ErrNotFound)).
 		WithContext("resource", resource).
 		WithContext("id", id)
 }
@@ -128,7 +128,7 @@ func WrapNotFound(op, resource, id string, err error) error {
 // WrapValidation wraps an error as a validation error with context
 func WrapValidation(op, field, reason string, err error) error {
 	return NewDomainError(op, "VALIDATION_FAILED",
-		fmt.Sprintf("validation failed for field %s: %s", field, reason), err).
+		fmt.Sprintf("validation failed for field %s: %s", field, reason), fmt.Errorf("%w", ErrInvalid)).
 		WithContext("field", field).
 		WithContext("reason", reason)
 }
@@ -136,7 +136,7 @@ func WrapValidation(op, field, reason string, err error) error {
 // WrapConflict wraps an error as a conflict error with context
 func WrapConflict(op, resource, reason string, err error) error {
 	return NewDomainError(op, "CONFLICT",
-		fmt.Sprintf("%s conflict: %s", resource, reason), err).
+		fmt.Sprintf("%s conflict: %s", resource, reason), fmt.Errorf("%w", ErrConflict)).
 		WithContext("resource", resource).
 		WithContext("reason", reason)
 }
