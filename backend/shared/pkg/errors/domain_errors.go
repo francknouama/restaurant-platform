@@ -140,3 +140,24 @@ func WrapConflict(op, resource, reason string, err error) error {
 		WithContext("resource", resource).
 		WithContext("reason", reason)
 }
+
+// WrapUnauthorized wraps an error as an unauthorized error with context
+func WrapUnauthorized(op, reason string, err error) error {
+	return NewDomainError(op, "UNAUTHORIZED",
+		reason, fmt.Errorf("%w", ErrUnauthorized)).
+		WithContext("reason", reason)
+}
+
+// WrapBadRequest wraps an error as a bad request error with context
+func WrapBadRequest(op, reason string, err error) error {
+	return NewDomainError(op, "BAD_REQUEST",
+		reason, fmt.Errorf("%w", ErrInvalid)).
+		WithContext("reason", reason)
+}
+
+// WrapInternal wraps an error as an internal server error with context
+func WrapInternal(op, reason string, err error) error {
+	return NewDomainError(op, "INTERNAL_ERROR",
+		reason, fmt.Errorf("%w", ErrInternal)).
+		WithContext("reason", reason)
+}

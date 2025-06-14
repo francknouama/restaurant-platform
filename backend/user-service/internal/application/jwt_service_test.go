@@ -90,7 +90,7 @@ func (suite *JWTServiceTestSuite) TestGenerateRefreshToken_Success() {
 func (suite *JWTServiceTestSuite) TestGenerateToken_DifferentTokensForSameUser() {
 	// When
 	token1, _, err1 := suite.jwtService.GenerateToken(suite.testUser, suite.testSessionID)
-	time.Sleep(1 * time.Millisecond) // Ensure different timestamps
+	time.Sleep(10 * time.Millisecond) // Ensure different timestamps (increased from 1ms)
 	token2, _, err2 := suite.jwtService.GenerateToken(suite.testUser, suite.testSessionID)
 
 	// Then

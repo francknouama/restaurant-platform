@@ -34,12 +34,18 @@ func getHTTPStatusFromError(err error) int {
 			return http.StatusUnauthorized
 		case "INVALID_TOKEN", "TOKEN_MISMATCH":
 			return http.StatusUnauthorized
+		case "UNAUTHORIZED":
+			return http.StatusUnauthorized
 		case "VALIDATION_FAILED":
+			return http.StatusBadRequest
+		case "BAD_REQUEST":
 			return http.StatusBadRequest
 		case "NOT_FOUND":
 			return http.StatusNotFound
 		case "CONFLICT":
 			return http.StatusConflict
+		case "INTERNAL_ERROR":
+			return http.StatusInternalServerError
 		default:
 			return http.StatusInternalServerError
 		}

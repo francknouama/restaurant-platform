@@ -25,11 +25,26 @@ func AuthMiddleware(authService domain.AuthenticationService) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		
+		// Trim any leading/trailing whitespace from token
+		tokenString = strings.TrimSpace(tokenString)
+		if tokenString == "" {
+			handleUnauthorized(c, "Bearer token required")
+			c.Abort()
+			return
+		}
 
 		// Validate token
 		userWithRole, err := authService.ValidateToken(c.Request.Context(), tokenString)
 		if err != nil {
-			handleUnauthorized(c, "Invalid or expired token")
+			handleError(c, err)
+			c.Abort()
+			return
+		}
+
+		// Check if user is active
+		if !userWithRole.User.IsActive {
+			handleForbidden(c, "account is disabled")
 			c.Abort()
 			return
 		}
