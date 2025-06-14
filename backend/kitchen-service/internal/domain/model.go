@@ -103,7 +103,7 @@ func NewKitchenOrder(orderID, tableID string) (*KitchenOrder, error) {
 
 	now := time.Now()
 	return &KitchenOrder{
-		ID:            KitchenOrderID("ko_" + now.Format("20060102150405")), // Simple ID generation
+		ID:            KitchenOrderID("ko_" + now.Format("20060102150405.000000")), // Simple ID generation
 		OrderID:       orderID,
 		TableID:       tableID,
 		Status:        KitchenOrderStatusNew,
@@ -126,7 +126,7 @@ func (ko *KitchenOrder) AddItem(menuItemID, name string, quantity int, prepTime 
 
 	// Create a new item
 	item := &KitchenItem{
-		ID:            KitchenItemID("ki_" + time.Now().Format("20060102150405")),
+		ID:            KitchenItemID("ki_" + time.Now().Format("20060102150405.000000")),
 		MenuItemID:    menuItemID,
 		Name:          name,
 		Quantity:      quantity,
@@ -263,27 +263,32 @@ func (ko *KitchenOrder) updateOrderStatus() {
 		return
 	}
 
-	// Check if all items are ready
-	allReady := true
-	allComplete := true
+	// Check item statuses to determine order status
+	allCancelled := true
+	allReadyOrCancelled := true
 	anyPreparing := false
+	anyReady := false
 
 	for _, item := range ko.Items {
+		if item.Status != KitchenItemStatusCancelled {
+			allCancelled = false
+		}
 		if item.Status != KitchenItemStatusReady && item.Status != KitchenItemStatusCancelled {
-			allReady = false
+			allReadyOrCancelled = false
 		}
 		if item.Status == KitchenItemStatusPreparing {
 			anyPreparing = true
 		}
-		if item.Status != KitchenItemStatusCancelled {
-			allComplete = false
+		if item.Status == KitchenItemStatusReady {
+			anyReady = true
 		}
 	}
 
-	// Update order status based on items
-	if allComplete {
+	// Update order status based on items (check most specific first)
+	if allCancelled {
 		ko.Status = KitchenOrderStatusCancelled
-	} else if allReady {
+	} else if allReadyOrCancelled && anyReady {
+		// All items are either ready or cancelled, and at least one is ready
 		ko.Status = KitchenOrderStatusReady
 	} else if anyPreparing {
 		ko.Status = KitchenOrderStatusPreparing

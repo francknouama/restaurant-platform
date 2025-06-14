@@ -38,7 +38,7 @@ func (r *KitchenOrderRepository) Save(ctx context.Context, order *domain.Kitchen
 			assigned_station, estimated_time, started_at, 
 			completed_at, notes, created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		)`
 
 	_, err = r.db.ExecContext(ctx, query,
@@ -71,7 +71,7 @@ func (r *KitchenOrderRepository) FindByID(ctx context.Context, id domain.Kitchen
 		       assigned_station, estimated_time, started_at, 
 		       completed_at, notes, created_at, updated_at
 		FROM kitchen_orders 
-		WHERE id = $1`
+		WHERE id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, string(id))
 	return r.scanKitchenOrder(row)
@@ -84,7 +84,7 @@ func (r *KitchenOrderRepository) FindByOrderID(ctx context.Context, orderID stri
 		       assigned_station, estimated_time, started_at, 
 		       completed_at, notes, created_at, updated_at
 		FROM kitchen_orders 
-		WHERE order_id = $1`
+		WHERE order_id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, orderID)
 	return r.scanKitchenOrder(row)
@@ -100,21 +100,20 @@ func (r *KitchenOrderRepository) Update(ctx context.Context, order *domain.Kitch
 
 	query := `
 		UPDATE kitchen_orders SET
-			order_id = $2,
-			table_id = $3,
-			status = $4,
-			items = $5,
-			priority = $6,
-			assigned_station = $7,
-			estimated_time = $8,
-			started_at = $9,
-			completed_at = $10,
-			notes = $11,
-			updated_at = $12
-		WHERE id = $1`
+			order_id = ?,
+			table_id = ?,
+			status = ?,
+			items = ?,
+			priority = ?,
+			assigned_station = ?,
+			estimated_time = ?,
+			started_at = ?,
+			completed_at = ?,
+			notes = ?,
+			updated_at = ?
+		WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query,
-		string(order.ID),
 		order.OrderID,
 		order.TableID,
 		string(order.Status),
@@ -126,10 +125,11 @@ func (r *KitchenOrderRepository) Update(ctx context.Context, order *domain.Kitch
 		nullTimeOrValue(order.CompletedAt),
 		order.Notes,
 		order.UpdatedAt,
+		string(order.ID), // ID is now the last parameter for WHERE clause
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to update kitchen order: %w", err)
+		return fmt.Errorf("failed to update kitchen order %s: %w", string(order.ID), err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -138,7 +138,7 @@ func (r *KitchenOrderRepository) Update(ctx context.Context, order *domain.Kitch
 	}
 
 	if rowsAffected == 0 {
-		return errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
+		return errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", string(order.ID), errors.ErrNotFound)
 	}
 
 	return nil
@@ -146,7 +146,7 @@ func (r *KitchenOrderRepository) Update(ctx context.Context, order *domain.Kitch
 
 // Delete deletes a kitchen order
 func (r *KitchenOrderRepository) Delete(ctx context.Context, id domain.KitchenOrderID) error {
-	query := `DELETE FROM kitchen_orders WHERE id = $1`
+	query := `DELETE FROM kitchen_orders WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query, string(id))
 	if err != nil {
@@ -159,7 +159,7 @@ func (r *KitchenOrderRepository) Delete(ctx context.Context, id domain.KitchenOr
 	}
 
 	if rowsAffected == 0 {
-		return errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
+		return errors.WrapNotFound("DeleteKitchenOrder", "kitchen_order", string(id), errors.ErrNotFound)
 	}
 
 	return nil
@@ -172,7 +172,7 @@ func (r *KitchenOrderRepository) FindByStatus(ctx context.Context, status domain
 		       assigned_station, estimated_time, started_at, 
 		       completed_at, notes, created_at, updated_at
 		FROM kitchen_orders 
-		WHERE status = $1
+		WHERE status = ?
 		ORDER BY created_at ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, string(status))
@@ -191,8 +191,16 @@ func (r *KitchenOrderRepository) FindByStation(ctx context.Context, stationID st
 		       assigned_station, estimated_time, started_at, 
 		       completed_at, notes, created_at, updated_at
 		FROM kitchen_orders 
-		WHERE assigned_station = $1
-		ORDER BY priority DESC, created_at ASC`
+		WHERE assigned_station = ?
+		ORDER BY 
+			CASE priority 
+				WHEN 'URGENT' THEN 1 
+				WHEN 'HIGH' THEN 2 
+				WHEN 'NORMAL' THEN 3 
+				WHEN 'LOW' THEN 4 
+				ELSE 5 
+			END ASC, 
+			created_at ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, stationID)
 	if err != nil {
@@ -211,7 +219,15 @@ func (r *KitchenOrderRepository) FindActive(ctx context.Context) ([]*domain.Kitc
 		       completed_at, notes, created_at, updated_at
 		FROM kitchen_orders 
 		WHERE status NOT IN ('COMPLETED', 'CANCELLED')
-		ORDER BY priority DESC, created_at ASC`
+		ORDER BY 
+			CASE priority 
+				WHEN 'URGENT' THEN 1 
+				WHEN 'HIGH' THEN 2 
+				WHEN 'NORMAL' THEN 3 
+				WHEN 'LOW' THEN 4 
+				ELSE 5 
+			END ASC, 
+			created_at ASC`
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -230,39 +246,39 @@ func (r *KitchenOrderRepository) List(ctx context.Context, offset, limit int, fi
 	argCount := 0
 
 	if filters.Status != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("status = $%d", argCount))
+		whereClauses = append(whereClauses, "status = ?")
 		args = append(args, string(*filters.Status))
+		argCount++
 	}
 
 	if filters.Priority != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("priority = $%d", argCount))
+		whereClauses = append(whereClauses, "priority = ?")
 		args = append(args, string(*filters.Priority))
+		argCount++
 	}
 
 	if filters.Station != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("assigned_station = $%d", argCount))
+		whereClauses = append(whereClauses, "assigned_station = ?")
 		args = append(args, *filters.Station)
+		argCount++
 	}
 
 	if filters.OrderID != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("order_id = $%d", argCount))
+		whereClauses = append(whereClauses, "order_id = ?")
 		args = append(args, *filters.OrderID)
+		argCount++
 	}
 
 	if filters.DateFrom != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("created_at >= $%d", argCount))
+		whereClauses = append(whereClauses, "created_at >= ?")
 		args = append(args, *filters.DateFrom)
+		argCount++
 	}
 
 	if filters.DateTo != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("created_at <= $%d", argCount))
+		whereClauses = append(whereClauses, "created_at <= ?")
 		args = append(args, *filters.DateTo)
+		argCount++
 	}
 
 	whereClause := ""
@@ -279,19 +295,22 @@ func (r *KitchenOrderRepository) List(ctx context.Context, offset, limit int, fi
 	}
 
 	// Get paginated results
-	argCount++
-	limitArg := argCount
-	argCount++
-	offsetArg := argCount
-
 	query := fmt.Sprintf(`
 		SELECT id, order_id, table_id, status, items, priority, 
 		       assigned_station, estimated_time, started_at, 
 		       completed_at, notes, created_at, updated_at
 		FROM kitchen_orders 
 		%s
-		ORDER BY priority DESC, created_at ASC
-		LIMIT $%d OFFSET $%d`, whereClause, limitArg, offsetArg)
+		ORDER BY 
+			CASE priority 
+				WHEN 'URGENT' THEN 1 
+				WHEN 'HIGH' THEN 2 
+				WHEN 'NORMAL' THEN 3 
+				WHEN 'LOW' THEN 4 
+				ELSE 5 
+			END ASC, 
+			created_at ASC
+		LIMIT ? OFFSET ?`, whereClause)
 
 	args = append(args, limit, offset)
 
@@ -317,39 +336,39 @@ func (r *KitchenOrderRepository) Count(ctx context.Context, filters domain.Kitch
 	argCount := 0
 
 	if filters.Status != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("status = $%d", argCount))
+		whereClauses = append(whereClauses, "status = ?")
 		args = append(args, string(*filters.Status))
+		argCount++
 	}
 
 	if filters.Priority != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("priority = $%d", argCount))
+		whereClauses = append(whereClauses, "priority = ?")
 		args = append(args, string(*filters.Priority))
+		argCount++
 	}
 
 	if filters.Station != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("assigned_station = $%d", argCount))
+		whereClauses = append(whereClauses, "assigned_station = ?")
 		args = append(args, *filters.Station)
+		argCount++
 	}
 
 	if filters.OrderID != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("order_id = $%d", argCount))
+		whereClauses = append(whereClauses, "order_id = ?")
 		args = append(args, *filters.OrderID)
+		argCount++
 	}
 
 	if filters.DateFrom != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("created_at >= $%d", argCount))
+		whereClauses = append(whereClauses, "created_at >= ?")
 		args = append(args, *filters.DateFrom)
+		argCount++
 	}
 
 	if filters.DateTo != nil {
-		argCount++
-		whereClauses = append(whereClauses, fmt.Sprintf("created_at <= $%d", argCount))
+		whereClauses = append(whereClauses, "created_at <= ?")
 		args = append(args, *filters.DateTo)
+		argCount++
 	}
 
 	whereClause := ""
@@ -372,12 +391,13 @@ func (r *KitchenOrderRepository) Count(ctx context.Context, filters domain.Kitch
 
 func (r *KitchenOrderRepository) scanKitchenOrder(row *sql.Row) (*domain.KitchenOrder, error) {
 	var order domain.KitchenOrder
+	var idStr string
 	var itemsJSON []byte
 	var estimatedTimeSeconds int64
 	var startedAt, completedAt sql.NullTime
 
 	err := row.Scan(
-		&order.ID,
+		&idStr,
 		&order.OrderID,
 		&order.TableID,
 		&order.Status,
@@ -394,10 +414,13 @@ func (r *KitchenOrderRepository) scanKitchenOrder(row *sql.Row) (*domain.Kitchen
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.WrapNotFound("UpdateKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
+			return nil, errors.WrapNotFound("FindKitchenOrder", "kitchen_order", "unknown", errors.ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to scan kitchen order: %w", err)
 	}
+
+	// Convert string ID to domain.KitchenOrderID
+	order.ID = domain.KitchenOrderID(idStr)
 
 	// Deserialize items from JSONB
 	if err := json.Unmarshal(itemsJSON, &order.Items); err != nil {
@@ -421,12 +444,13 @@ func (r *KitchenOrderRepository) scanKitchenOrders(rows *sql.Rows) ([]*domain.Ki
 
 	for rows.Next() {
 		var order domain.KitchenOrder
+		var idStr string
 		var itemsJSON []byte
 		var estimatedTimeSeconds int64
 		var startedAt, completedAt sql.NullTime
 
 		err := rows.Scan(
-			&order.ID,
+			&idStr,
 			&order.OrderID,
 			&order.TableID,
 			&order.Status,
@@ -444,6 +468,9 @@ func (r *KitchenOrderRepository) scanKitchenOrders(rows *sql.Rows) ([]*domain.Ki
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan kitchen order: %w", err)
 		}
+
+		// Convert string ID to domain.KitchenOrderID
+		order.ID = domain.KitchenOrderID(idStr)
 
 		// Deserialize items from JSONB
 		if err := json.Unmarshal(itemsJSON, &order.Items); err != nil {
@@ -469,10 +496,10 @@ func (r *KitchenOrderRepository) scanKitchenOrders(rows *sql.Rows) ([]*domain.Ki
 	return orders, nil
 }
 
-// nullTimeOrValue returns sql.NullTime or the time value based on whether it's zero
-func nullTimeOrValue(t time.Time) interface{} {
+// nullTimeOrValue returns sql.NullTime for SQLite compatibility
+func nullTimeOrValue(t time.Time) sql.NullTime {
 	if t.IsZero() {
 		return sql.NullTime{Valid: false}
 	}
-	return t
+	return sql.NullTime{Time: t, Valid: true}
 }
