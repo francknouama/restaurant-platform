@@ -9,10 +9,19 @@ bin/
 
 # Go workspace
 *.work.sum
+go.work.sum
 
 # Test coverage
 coverage.out
 *.coverprofile
+
+# Go test binaries
+*.test
+**/*.test
+
+# Service binaries
+**/server
+server
 
 # IDE
 .vscode/
