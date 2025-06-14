@@ -1,0 +1,229 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/performance-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Test type to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - load
+          - stress
+          - spike
+          - all
+
+env:
+  GO_VERSION: '1.24.4'
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Start backend services
+      working-directory: ./backend
+      run: |
+        # Start services with docker-compose
+        docker-compose -f performance_tests/docker-compose.perf.yml up -d postgres redis influxdb grafana
+        
+        # Wait for services to be healthy
+        echo "Waiting for services to be ready..."
+        timeout 60s bash -c 'until docker-compose -f performance_tests/docker-compose.perf.yml ps | grep -E "postgres.*healthy|redis.*healthy"; do sleep 2; done'
+        
+        # Build and start backend
+        docker-compose -f performance_tests/docker-compose.perf.yml up -d --build backend
+        
+        # Wait for backend to be healthy
+        timeout 60s bash -c 'until curl -f http://localhost:8080/api/v1/menus; do sleep 2; done'
+
+    - name: Run smoke tests
+      if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'smoke')
+      working-directory: ./backend
+      run: |
+        docker-compose -f performance_tests/docker-compose.perf.yml run --rm \
+          -e TEST_SCRIPT=scripts/menu-service.js \
+          k6 run \
+          --out influxdb=http://influxdb:8086/k6 \
+          --vus 1 \
+          --duration 30s \
+          /tests/scripts/menu-service.js
+
+    - name: Run load tests
+      if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.test_type == 'load' || github.event.inputs.test_type == 'all'))
+      working-directory: ./backend
+      run: |
+        # Menu service load test
+        docker-compose -f performance_tests/docker-compose.perf.yml run --rm \
+          -e TEST_SCRIPT=scripts/menu-service.js \
+          k6
+        
+        # Order service load test
+        docker-compose -f performance_tests/docker-compose.perf.yml run --rm \
+          -e TEST_SCRIPT=scripts/order-service.js \
+          k6
+
+    - name: Run stress tests
+      if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.test_type == 'stress' || github.event.inputs.test_type == 'all'))
+      working-directory: ./backend
+      run: |
+        docker-compose -f performance_tests/docker-compose.perf.yml run --rm \
+          -e TEST_SCRIPT=scenarios/full-workflow.js \
+          k6
+
+    - name: Run spike tests
+      if: github.event_name == 'workflow_dispatch' && (github.event.inputs.test_type == 'spike' || github.event.inputs.test_type == 'all')
+      working-directory: ./backend
+      run: |
+        docker-compose -f performance_tests/docker-compose.perf.yml run --rm \
+          -e TEST_SCRIPT=scenarios/spike-test.js \
+          k6
+
+    - name: Generate performance report
+      if: always()
+      working-directory: ./backend
+      run: |
+        mkdir -p performance_tests/results
+        
+        # Export metrics from InfluxDB
+        docker-compose -f performance_tests/docker-compose.perf.yml exec -T influxdb \
+          influx -database k6 -execute "SELECT * FROM http_req_duration WHERE time > now() - 1h" -format csv \
+          > performance_tests/results/http_req_duration.csv || true
+        
+        # Create summary report
+        cat > performance_tests/results/summary.md << EOF
+        # Performance Test Results
+        
+        **Date:** $(date)
+        **Branch:** ${{ github.ref }}
+        **Commit:** ${{ github.sha }}
+        **Test Type:** ${{ github.event.inputs.test_type || 'automated' }}
+        
+        ## Results Summary
+        
+        See attached CSV files for detailed metrics.
+        
+        ### Grafana Dashboard
+        
+        If running locally, access Grafana at http://localhost:3001
+        - Username: admin
+        - Password: admin123
+        
+        EOF
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-test-results-${{ github.run_id }}
+        path: |
+          backend/performance_tests/results/
+        retention-days: 30
+
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summaryPath = 'backend/performance_tests/results/summary.md';
+          
+          let comment = '## 📊 Performance Test Results\n\n';
+          
+          if (fs.existsSync(summaryPath)) {
+            comment += fs.readFileSync(summaryPath, 'utf8');
+          } else {
+            comment += '❌ No test results found. Check the workflow logs for details.';
+          }
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('Performance Test Results')
+          );
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: comment
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          }
+
+    - name: Cleanup
+      if: always()
+      working-directory: ./backend
+      run: |
+        docker-compose -f performance_tests/docker-compose.perf.yml down -v
+
+  performance-analysis:
+    runs-on: ubuntu-latest
+    needs: performance-test
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'all')
+    
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: performance-test-results-${{ github.run_id }}
+        path: ./results
+
+    - name: Analyze performance trends
+      run: |
+        # This is where you could add scripts to analyze performance trends
+        # Compare with previous runs, detect regressions, etc.
+        echo "Performance analysis would be performed here"
+
+    - name: Create issue if performance degradation detected
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 Performance Degradation Detected',
+            body: `Performance tests detected a degradation in the latest run.
+            
+            **Run ID:** ${{ github.run_id }}
+            **Date:** ${new Date().toISOString()}
+            
+            Please investigate the performance test results.`,
+            labels: ['performance', 'bug']
+          });
