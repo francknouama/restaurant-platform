@@ -1,0 +1,102 @@
+# Pre-commit hooks for security and code quality
+# Install: pip install pre-commit
+# Setup: pre-commit install
+
+repos:
+  # Secret Detection
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.63.2
+    hooks:
+      - id: trufflehog
+        name: TruffleHog Secret Detection
+        entry: bash -c 'trufflehog git file://. --since-commit HEAD --only-verified --fail'
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: .*\.lock$|package-lock\.json$|go\.sum$
+
+  # Go Security Checks
+  - repo: https://github.com/securego/gosec
+    rev: v2.18.2
+    hooks:
+      - id: gosec
+        name: Go Security Checker
+        args: ['-fmt=json', '-out=gosec-report.json', '-stdout', '-verbose=text']
+        files: '\.go$'
+
+  # Go Code Quality
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.55.2
+    hooks:
+      - id: golangci-lint
+        name: Go Linter
+        args: ['--timeout=5m']
+
+  # YAML Validation
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+
+  # Dockerfile Security
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.1-beta
+    hooks:
+      - id: hadolint-docker
+        name: Dockerfile Linter
+        args: ['--ignore', 'DL3008', '--ignore', 'DL3009']
+
+  # JavaScript/TypeScript Security
+  - repo: https://github.com/eslint/eslint
+    rev: v8.56.0
+    hooks:
+      - id: eslint
+        name: ESLint Security Check
+        files: \.(js|jsx|ts|tsx)$
+        args: ['--config', '.eslintrc.security.json']
+        additional_dependencies:
+          - eslint-plugin-security
+          - eslint-plugin-no-secrets
+
+  # Markdown
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+
+  # Security Policy Enforcement
+  - repo: local
+    hooks:
+      - id: check-security-headers
+        name: Check Security Headers
+        entry: scripts/check-security-headers.sh
+        language: script
+        files: '(nginx|gateway).*\.conf$'
+        
+      - id: check-credentials
+        name: Check for Hardcoded Credentials
+        entry: scripts/check-credentials.sh
+        language: script
+        types: [text]
+        exclude: .*\.(md|txt|lock)$
+
+      - id: check-sensitive-files
+        name: Check for Sensitive Files
+        entry: scripts/check-sensitive-files.sh
+        language: script
+        pass_filenames: false

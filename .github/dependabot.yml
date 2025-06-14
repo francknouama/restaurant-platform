@@ -1,0 +1,186 @@
+# Dependabot configuration for automated dependency updates
+version: 2
+updates:
+  # Go dependencies
+  - package-ecosystem: "gomod"
+    directory: "/backend"
+    schedule:
+      interval: "daily"
+      time: "02:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "@francknouama"
+    assignees:
+      - "@francknouama"
+    labels:
+      - "dependencies"
+      - "go"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+
+  # Go dependencies for each service
+  - package-ecosystem: "gomod"
+    directory: "/backend/menu-service"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "go"
+      - "menu-service"
+
+  - package-ecosystem: "gomod"
+    directory: "/backend/order-service"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "go"
+      - "order-service"
+
+  - package-ecosystem: "gomod"
+    directory: "/backend/kitchen-service"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "go"
+      - "kitchen-service"
+
+  - package-ecosystem: "gomod"
+    directory: "/backend/reservation-service"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "go"
+      - "reservation-service"
+
+  - package-ecosystem: "gomod"
+    directory: "/backend/inventory-service"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "go"
+      - "inventory-service"
+
+  - package-ecosystem: "gomod"
+    directory: "/backend/user-service"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "go"
+      - "user-service"
+
+  # Frontend dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend-mfe"
+    schedule:
+      interval: "daily"
+      time: "02:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "@francknouama"
+    assignees:
+      - "@francknouama"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "frontend"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    ignore:
+      # Ignore major version updates for critical packages
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+    versioning-strategy: increase
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/backend/menu-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/order-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/kitchen-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/reservation-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/inventory-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/user-service"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+# Security updates are given priority
+security-updates:
+  open-pull-requests-limit: 20
