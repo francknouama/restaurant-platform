@@ -644,3 +644,356 @@ func (suite *OrderServiceTestSuite) TestListOrders_Success() {
 	
 	suite.mockRepo.AssertExpectations(suite.T())
 }
+
+// Test Error Handling for Repository Failures
+func (suite *OrderServiceTestSuite) TestAddItemToOrder_InvalidQuantity_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+
+	// When - Try to add item with invalid quantity
+	err := suite.service.AddItemToOrder(suite.ctx, orderID, "item-1", "Item", 0, 10.99, nil, "")
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "quantity must be positive")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockRepo.AssertNotCalled(suite.T(), "Update")
+}
+
+func (suite *OrderServiceTestSuite) TestAddItemToOrder_UpdateError_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	updateError := errors.New("database update failed")
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(updateError)
+
+	// When
+	err := suite.service.AddItemToOrder(suite.ctx, orderID, "item-1", "Item", 1, 10.99, nil, "")
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "failed to update order")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+}
+
+// Test Complex Filters
+func (suite *OrderServiceTestSuite) TestListOrders_ComplexFilters() {
+	// Given
+	offset := 10
+	limit := 20
+	status := domain.OrderStatusCompleted
+	orderType := domain.OrderTypeDelivery
+	startDate := time.Now().Add(-24 * time.Hour)
+	endDate := time.Now()
+	minAmount := 50.00
+	maxAmount := 200.00
+	
+	filters := domain.OrderFilters{
+		CustomerID: "customer-123",
+		Status:     &status,
+		Type:       &orderType,
+		StartDate:  &startDate,
+		EndDate:    &endDate,
+		TableID:    "",
+		MinAmount:  &minAmount,
+		MaxAmount:  &maxAmount,
+	}
+	
+	expectedOrders := []*domain.Order{
+		{
+			Status:     domain.OrderStatusCompleted,
+			Type:       domain.OrderTypeDelivery,
+			CustomerID: "customer-123",
+			TotalAmount: 75.50,
+		},
+	}
+	totalCount := 1
+	
+	suite.mockRepo.On("List", suite.ctx, offset, limit, filters).Return(expectedOrders, totalCount, nil)
+
+	// When
+	result, count, err := suite.service.ListOrders(suite.ctx, offset, limit, filters)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err)
+	assert.Len(result, 1)
+	assert.Equal(totalCount, count)
+	assert.Equal(domain.OrderStatusCompleted, result[0].Status)
+	assert.Equal(domain.OrderTypeDelivery, result[0].Type)
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+}
+
+// Test Concurrent Operations
+func (suite *OrderServiceTestSuite) TestUpdateItemQuantity_InvalidQuantity_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	existingOrder.AddItem("item-1", "Salad", 1, 10.00, nil, "")
+	itemID := existingOrder.Items[0].ID
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+
+	// When - Try to update with negative quantity
+	err := suite.service.UpdateItemQuantity(suite.ctx, orderID, itemID, -1)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "quantity must be positive")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockRepo.AssertNotCalled(suite.T(), "Update")
+}
+
+func (suite *OrderServiceTestSuite) TestRemoveItemFromOrder_NonExistentItem_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	existingOrder.AddItem("item-1", "Salad", 1, 10.00, nil, "")
+	nonExistentItemID := domain.OrderItemID("non-existent")
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+
+	// When
+	err := suite.service.RemoveItemFromOrder(suite.ctx, orderID, nonExistentItemID)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "not found")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockRepo.AssertNotCalled(suite.T(), "Update")
+}
+
+// Test Edge Cases for Type-Specific Operations
+func (suite *OrderServiceTestSuite) TestSetTableForOrder_NonDineInOrder_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeTakeout)
+	existingOrder.ID = orderID
+	tableID := "table-5"
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+
+	// When
+	err := suite.service.SetTableForOrder(suite.ctx, orderID, tableID)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "table ID can only be set for dine-in orders")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockRepo.AssertNotCalled(suite.T(), "Update")
+}
+
+func (suite *OrderServiceTestSuite) TestSetDeliveryAddress_NonDeliveryOrder_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	address := "123 Main St"
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+
+	// When
+	err := suite.service.SetDeliveryAddress(suite.ctx, orderID, address)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "delivery address can only be set for delivery orders")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockRepo.AssertNotCalled(suite.T(), "Update")
+}
+
+// Test Cancel Order Edge Cases
+func (suite *OrderServiceTestSuite) TestCancelOrder_AlreadyCancelled_ShouldFail() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	existingOrder.Status = domain.OrderStatusCancelled
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+
+	// When
+	err := suite.service.CancelOrder(suite.ctx, orderID)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Contains(err.Error(), "cannot cancel")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockRepo.AssertNotCalled(suite.T(), "Update")
+	suite.mockPublisher.AssertNotCalled(suite.T(), "Publish")
+}
+
+// Test Repository Error Propagation
+func (suite *OrderServiceTestSuite) TestGetOrdersByCustomer_RepositoryError() {
+	// Given
+	customerID := "customer-123"
+	repoError := errors.New("database connection lost")
+	
+	suite.mockRepo.On("FindByCustomer", suite.ctx, customerID).Return(nil, repoError)
+
+	// When
+	result, err := suite.service.GetOrdersByCustomer(suite.ctx, customerID)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Nil(result)
+	assert.Equal(repoError, err)
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+}
+
+func (suite *OrderServiceTestSuite) TestGetOrdersByStatus_EmptyResult() {
+	// Given
+	status := domain.OrderStatusPreparing
+	expectedOrders := []*domain.Order{}
+	
+	suite.mockRepo.On("FindByStatus", suite.ctx, status).Return(expectedOrders, nil)
+
+	// When
+	result, err := suite.service.GetOrdersByStatus(suite.ctx, status)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err)
+	assert.NotNil(result)
+	assert.Empty(result)
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+}
+
+// Test Event Publishing Scenarios
+func (suite *OrderServiceTestSuite) TestUpdateOrderStatus_DifferentEventTypes() {
+	testCases := []struct {
+		name          string
+		initialStatus domain.OrderStatus
+		newStatus     domain.OrderStatus
+		expectedEvent events.EventType
+	}{
+		{
+			name:          "Order Paid Event",
+			initialStatus: domain.OrderStatusCreated,
+			newStatus:     domain.OrderStatusPaid,
+			expectedEvent: events.OrderPaidEvent,
+		},
+		{
+			name:          "Order Cancelled Event",
+			initialStatus: domain.OrderStatusPaid,
+			newStatus:     domain.OrderStatusCancelled,
+			expectedEvent: events.OrderCancelledEvent,
+		},
+		{
+			name:          "Order Completed Event",
+			initialStatus: domain.OrderStatusReady,
+			newStatus:     domain.OrderStatusCompleted,
+			expectedEvent: events.OrderCompletedEvent,
+		},
+		{
+			name:          "Generic Status Changed Event",
+			initialStatus: domain.OrderStatusPaid,
+			newStatus:     domain.OrderStatusPreparing,
+			expectedEvent: events.OrderStatusChangedEvent,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			// Given
+			orderID := domain.OrderID("ord_123")
+			existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+			existingOrder.ID = orderID
+			existingOrder.Status = tc.initialStatus
+			
+			// Create new mocks for this test
+			mockRepo := new(MockOrderRepository)
+			mockPublisher := new(MockEventPublisher)
+			service := NewOrderService(mockRepo, mockPublisher)
+			
+			mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+			mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+			mockPublisher.On("Publish", suite.ctx, mock.MatchedBy(func(event *events.DomainEvent) bool {
+				return event.Type == tc.expectedEvent
+			})).Return(nil)
+
+			// When
+			err := service.UpdateOrderStatus(suite.ctx, orderID, tc.newStatus)
+
+			// Then
+			assert.NoError(t, err)
+			assert.Equal(t, tc.newStatus, existingOrder.Status)
+			
+			mockRepo.AssertExpectations(t)
+			mockPublisher.AssertExpectations(t)
+		})
+	}
+}
+
+// Test Context Cancellation
+func (suite *OrderServiceTestSuite) TestCreateOrder_ContextCancelled() {
+	// Given
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel context immediately
+	
+	customerID := "customer-123"
+	orderType := domain.OrderTypeDineIn
+	
+	suite.mockRepo.On("Create", ctx, mock.AnythingOfType("*domain.Order")).Return(context.Canceled)
+
+	// When
+	result, err := suite.service.CreateOrder(ctx, customerID, orderType)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	assert.Nil(result)
+	assert.Contains(err.Error(), "failed to save order")
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+}
+
+// Test Null/Empty Handling
+func (suite *OrderServiceTestSuite) TestAddOrderNotes_EmptyNotes() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	existingOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	existingOrder.ID = orderID
+	existingOrder.Notes = "Existing notes"
+	emptyNotes := ""
+	
+	suite.mockRepo.On("GetByID", suite.ctx, orderID).Return(existingOrder, nil)
+	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+
+	// When
+	err := suite.service.AddOrderNotes(suite.ctx, orderID, emptyNotes)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err)
+	assert.Equal(emptyNotes, existingOrder.Notes) // Notes should be overwritten even if empty
+	
+	suite.mockRepo.AssertExpectations(suite.T())
+}

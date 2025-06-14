@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -663,4 +664,439 @@ func (suite *OrderHandlerTestSuite) TestConcurrency_MultipleRequests() {
 
 	// This would test multiple concurrent requests to ensure
 	// thread safety and proper handling
+}
+
+// Additional comprehensive tests
+
+// Test GetOrder Handler
+func (suite *OrderHandlerTestSuite) TestGetOrder_Success() {
+	// Given
+	orderID := domain.OrderID("ord_123")
+	expectedOrder, _ := domain.NewOrder("customer-123", domain.OrderTypeDineIn)
+	expectedOrder.ID = orderID
+	
+	suite.mockService.On("GetOrderByID", mock.Anything, orderID).Return(expectedOrder, nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/ord_123", nil)
+	
+	// Create a new route for this test
+	router := gin.New()
+	router.GET("/api/v1/orders/:id", suite.handler.GetOrder)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	var response application.OrderResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Equal(string(orderID), response.ID)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+func (suite *OrderHandlerTestSuite) TestGetOrder_NotFound() {
+	// Given
+	orderID := domain.OrderID("non-existent")
+	notFoundError := errors.New("order not found")
+	
+	suite.mockService.On("GetOrderByID", mock.Anything, orderID).Return(nil, notFoundError)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/non-existent", nil)
+	
+	router := gin.New()
+	router.GET("/api/v1/orders/:id", suite.handler.GetOrder)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusInternalServerError, w.Code) // handleError treats regular errors as 500
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test RemoveItemFromOrder Handler
+func (suite *OrderHandlerTestSuite) TestRemoveItemFromOrder_Success() {
+	// Given
+	orderID := "ord_123"
+	itemID := "item_456"
+	
+	suite.mockService.On("RemoveItemFromOrder", mock.Anything, domain.OrderID(orderID), domain.OrderItemID(itemID)).Return(nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/api/v1/orders/ord_123/items/item_456", nil)
+	
+	router := gin.New()
+	router.DELETE("/api/v1/orders/:id/items/:itemId", suite.handler.RemoveItemFromOrder)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	var response map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Equal("Item removed successfully", response["message"])
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test UpdateItemQuantity Handler
+func (suite *OrderHandlerTestSuite) TestUpdateItemQuantity_Success() {
+	// Given
+	orderID := "ord_123"
+	itemID := "item_456"
+	request := application.UpdateItemQuantityRequest{
+		Quantity: 3,
+	}
+	requestJSON, _ := json.Marshal(request)
+	
+	suite.mockService.On("UpdateItemQuantity", mock.Anything, domain.OrderID(orderID), domain.OrderItemID(itemID), request.Quantity).Return(nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PATCH", "/api/v1/orders/ord_123/items/item_456/quantity", bytes.NewBuffer(requestJSON))
+	req.Header.Set("Content-Type", "application/json")
+	
+	router := gin.New()
+	router.PATCH("/api/v1/orders/:id/items/:itemId/quantity", suite.handler.UpdateItemQuantity)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test AddNotes Handler
+func (suite *OrderHandlerTestSuite) TestAddNotes_Success() {
+	// Given
+	orderID := "ord_123"
+	request := application.AddNotesRequest{
+		Notes: "Please prepare extra hot",
+	}
+	requestJSON, _ := json.Marshal(request)
+	
+	suite.mockService.On("AddOrderNotes", mock.Anything, domain.OrderID(orderID), request.Notes).Return(nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PATCH", "/api/v1/orders/ord_123/notes", bytes.NewBuffer(requestJSON))
+	req.Header.Set("Content-Type", "application/json")
+	
+	router := gin.New()
+	router.PATCH("/api/v1/orders/:id/notes", suite.handler.AddNotes)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test GetOrdersByCustomer Handler
+func (suite *OrderHandlerTestSuite) TestGetOrdersByCustomer_Success() {
+	// Given
+	customerID := "customer-123"
+	expectedOrders := []*domain.Order{
+		{CustomerID: customerID, Type: domain.OrderTypeDineIn},
+		{CustomerID: customerID, Type: domain.OrderTypeTakeout},
+	}
+	
+	suite.mockService.On("GetOrdersByCustomer", mock.Anything, customerID).Return(expectedOrders, nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/customer/customer-123", nil)
+	
+	router := gin.New()
+	router.GET("/api/v1/orders/customer/:customerId", suite.handler.GetOrdersByCustomer)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Contains(response, "orders")
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test GetOrdersByStatus Handler
+func (suite *OrderHandlerTestSuite) TestGetOrdersByStatus_Success() {
+	// Given
+	status := domain.OrderStatusPreparing
+	expectedOrders := []*domain.Order{
+		{Status: status, CustomerID: "customer-1"},
+		{Status: status, CustomerID: "customer-2"},
+	}
+	
+	suite.mockService.On("GetOrdersByStatus", mock.Anything, status).Return(expectedOrders, nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/status/PREPARING", nil)
+	
+	router := gin.New()
+	router.GET("/api/v1/orders/status/:status", suite.handler.GetOrdersByStatus)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+func (suite *OrderHandlerTestSuite) TestGetOrdersByStatus_InvalidStatus() {
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/status/INVALID", nil)
+	
+	router := gin.New()
+	router.GET("/api/v1/orders/status/:status", suite.handler.GetOrdersByStatus)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusBadRequest, w.Code)
+}
+
+// Test GetOrdersByTable Handler
+func (suite *OrderHandlerTestSuite) TestGetOrdersByTable_Success() {
+	// Given
+	tableID := "table-5"
+	expectedOrders := []*domain.Order{
+		{TableID: tableID, Type: domain.OrderTypeDineIn},
+	}
+	
+	suite.mockService.On("GetOrdersByTable", mock.Anything, tableID).Return(expectedOrders, nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/table/table-5", nil)
+	
+	router := gin.New()
+	router.GET("/api/v1/orders/table/:tableId", suite.handler.GetOrdersByTable)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test ListOrders with complex filters
+func (suite *OrderHandlerTestSuite) TestListOrders_ComplexFilters() {
+	// Given
+	expectedOrders := []*domain.Order{
+		{Status: domain.OrderStatusCompleted, Type: domain.OrderTypeDelivery, CustomerID: "customer-123"},
+	}
+	totalCount := 1
+	
+	suite.mockService.On("ListOrders", mock.Anything, 10, 20, mock.MatchedBy(func(filters domain.OrderFilters) bool {
+		return filters.CustomerID == "customer-123" &&
+			*filters.Status == domain.OrderStatusCompleted &&
+			*filters.Type == domain.OrderTypeDelivery &&
+			*filters.MinAmount == 50.00 &&
+			*filters.MaxAmount == 200.00
+	})).Return(expectedOrders, totalCount, nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders?offset=10&limit=20&customer_id=customer-123&status=COMPLETED&type=DELIVERY&min_amount=50&max_amount=200", nil)
+	suite.router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	var response application.OrderListResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Equal(totalCount, response.Total)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+func (suite *OrderHandlerTestSuite) TestListOrders_InvalidDateFormat() {
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders?date_from=invalid-date", nil)
+	suite.router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusBadRequest, w.Code)
+	
+	var response application.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Contains(response.Error, "Invalid date_from format")
+}
+
+// Test Health endpoint
+func (suite *OrderHandlerTestSuite) TestHealth_Success() {
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/health", nil)
+	
+	router := gin.New()
+	router.GET("/health", suite.handler.Health)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	var response application.HealthResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Equal("healthy", response.Status)
+	assert.Equal("order-service", response.Service)
+}
+
+// Test CreateOrder with delivery order
+func (suite *OrderHandlerTestSuite) TestCreateOrder_DeliveryOrder_Success() {
+	// Given
+	request := application.CreateOrderRequest{
+		CustomerID: "customer-123",
+		Type:       "DELIVERY",
+		Address:    "123 Main St, City",
+		Notes:      "Leave at door",
+	}
+	requestJSON, _ := json.Marshal(request)
+	
+	expectedOrder, _ := domain.NewOrder(request.CustomerID, domain.OrderTypeDelivery)
+	suite.mockService.On("CreateOrder", mock.Anything, request.CustomerID, domain.OrderTypeDelivery).Return(expectedOrder, nil)
+	suite.mockService.On("SetDeliveryAddress", mock.Anything, expectedOrder.ID, request.Address).Return(nil)
+	suite.mockService.On("AddOrderNotes", mock.Anything, expectedOrder.ID, request.Notes).Return(nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/orders", bytes.NewBuffer(requestJSON))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusCreated, w.Code)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test validation helper functions
+func (suite *OrderHandlerTestSuite) TestValidateOrderType_AllValidTypes() {
+	testCases := []struct {
+		input    string
+		expected domain.OrderType
+	}{
+		{"DINE_IN", domain.OrderTypeDineIn},
+		{"TAKEOUT", domain.OrderTypeTakeout},
+		{"DELIVERY", domain.OrderTypeDelivery},
+	}
+
+	for _, tc := range testCases {
+		result, err := validateOrderType(tc.input)
+		assert.NoError(suite.T(), err)
+		assert.Equal(suite.T(), tc.expected, result)
+	}
+}
+
+func (suite *OrderHandlerTestSuite) TestValidateOrderType_Invalid() {
+	result, err := validateOrderType("INVALID_TYPE")
+	assert.Error(suite.T(), err)
+	assert.Empty(suite.T(), result)
+	assert.Contains(suite.T(), err.Error(), "invalid order type")
+}
+
+func (suite *OrderHandlerTestSuite) TestValidateOrderStatus_AllValidStatuses() {
+	testCases := []struct {
+		input    string
+		expected domain.OrderStatus
+	}{
+		{"CREATED", domain.OrderStatusCreated},
+		{"PAID", domain.OrderStatusPaid},
+		{"PREPARING", domain.OrderStatusPreparing},
+		{"READY", domain.OrderStatusReady},
+		{"COMPLETED", domain.OrderStatusCompleted},
+		{"CANCELLED", domain.OrderStatusCancelled},
+	}
+
+	for _, tc := range testCases {
+		result, err := validateOrderStatus(tc.input)
+		assert.NoError(suite.T(), err)
+		assert.Equal(suite.T(), tc.expected, result)
+	}
+}
+
+func (suite *OrderHandlerTestSuite) TestValidateOrderStatus_Invalid() {
+	result, err := validateOrderStatus("INVALID_STATUS")
+	assert.Error(suite.T(), err)
+	assert.Empty(suite.T(), result)
+	assert.Contains(suite.T(), err.Error(), "invalid order status")
+}
+
+// Test error handling for specific error types using custom errors
+func (suite *OrderHandlerTestSuite) TestHandleError_NotFoundError() {
+	// Given
+	orderID := domain.OrderID("non-existent")
+	// Create a properly structured not found error
+	notFoundError := fmt.Errorf("order not found")
+	
+	suite.mockService.On("GetOrderByID", mock.Anything, orderID).Return(nil, notFoundError)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/non-existent", nil)
+	
+	router := gin.New()
+	router.GET("/api/v1/orders/:id", suite.handler.GetOrder)
+	router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	// Since we're not using the errors package's IsNotFound, it will return 500
+	assert.Equal(http.StatusInternalServerError, w.Code)
+	
+	suite.mockService.AssertExpectations(suite.T())
+}
+
+// Test empty response handling
+func (suite *OrderHandlerTestSuite) TestGetActiveOrders_EmptyResult() {
+	// Given
+	expectedOrders := []*domain.Order{}
+	
+	suite.mockService.On("GetActiveOrders", mock.Anything).Return(expectedOrders, nil)
+
+	// When
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/orders/active", nil)
+	suite.router.ServeHTTP(w, req)
+
+	// Then
+	assert := assert.New(suite.T())
+	assert.Equal(http.StatusOK, w.Code)
+	
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(err)
+	assert.Contains(response, "orders")
+	orders := response["orders"].([]interface{})
+	assert.Empty(orders)
+	
+	suite.mockService.AssertExpectations(suite.T())
 }

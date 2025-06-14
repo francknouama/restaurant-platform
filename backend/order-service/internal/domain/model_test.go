@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/restaurant-platform/shared/pkg/types"
 )
 
 // OrderTestSuite contains all domain model tests
@@ -599,4 +600,247 @@ func (suite *OrderTestSuite) TestTaxCalculation_PrecisionHandling() {
 	
 	assert.InDelta(expectedTax, order.TaxAmount, 0.001)
 	assert.InDelta(expectedTotal, order.TotalAmount, 0.001)
+}
+
+// Test ID Generation
+func (suite *OrderTestSuite) TestOrderIDGeneration() {
+	// Given & When
+	order1, _ := NewOrder("customer-123", OrderTypeDineIn)
+	order2, _ := NewOrder("customer-456", OrderTypeTakeout)
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.NotEmpty(order1.ID)
+	assert.NotEmpty(order2.ID)
+	assert.NotEqual(order1.ID, order2.ID)
+	assert.True(strings.HasPrefix(string(order1.ID), "ord_"))
+	assert.True(strings.HasPrefix(string(order2.ID), "ord_"))
+}
+
+func (suite *OrderTestSuite) TestOrderItemIDGeneration() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	
+	// When
+	order.AddItem("item-1", "Salad", 1, 10.00, nil, "")
+	time.Sleep(1 * time.Millisecond) // Ensure different timestamps
+	order.AddItem("item-2", "Pasta", 1, 15.00, nil, "")
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.NotEqual(order.Items[0].ID, order.Items[1].ID)
+	assert.True(strings.HasPrefix(string(order.Items[0].ID), "item_"))
+	assert.True(strings.HasPrefix(string(order.Items[1].ID), "item_"))
+}
+
+// Test Edge Cases for Different Order Types
+func (suite *OrderTestSuite) TestTakeoutOrder_NoTableOrDeliveryRequired() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeTakeout)
+	order.AddItem("item-1", "Burger", 1, 15.00, nil, "")
+	
+	// When
+	err := order.Validate()
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err) // Takeout doesn't require table or delivery address
+	assert.Empty(order.TableID)
+	assert.Empty(order.DeliveryAddress)
+}
+
+// Test Concurrent Modifications
+func (suite *OrderTestSuite) TestUpdatedAtTimestamp() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	initialUpdatedAt := order.UpdatedAt
+	time.Sleep(10 * time.Millisecond)
+	
+	// When - Various operations should update the timestamp
+	order.AddItem("item-1", "Salad", 1, 10.00, nil, "")
+	afterAddItem := order.UpdatedAt
+	
+	time.Sleep(10 * time.Millisecond)
+	order.UpdateItemQuantity(order.Items[0].ID, 2)
+	afterUpdateQuantity := order.UpdatedAt
+	
+	time.Sleep(10 * time.Millisecond)
+	order.AddNotes("Special request")
+	afterAddNotes := order.UpdatedAt
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.True(afterAddItem.After(initialUpdatedAt))
+	assert.True(afterUpdateQuantity.After(afterAddItem))
+	assert.True(afterAddNotes.After(afterUpdateQuantity))
+}
+
+// Test Complex Order Scenarios
+func (suite *OrderTestSuite) TestComplexOrder_MultipleItemsAndModifications() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	order.SetTableID("table-10")
+	
+	// When - Build a complex order
+	order.AddItem("burger-1", "Classic Burger", 2, 12.99, []string{"no onions", "extra cheese"}, "well done")
+	order.AddItem("fries-1", "French Fries", 1, 4.99, []string{"extra crispy"}, "")
+	order.AddItem("drink-1", "Soda", 2, 2.99, nil, "no ice")
+	order.AddNotes("Birthday celebration - bring candle with dessert")
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.Len(order.Items, 3)
+	
+	// Check first item
+	burger := order.Items[0]
+	assert.Equal("Classic Burger", burger.Name)
+	assert.Equal(2, burger.Quantity)
+	assert.Equal(12.99, burger.UnitPrice)
+	assert.Equal(25.98, burger.Subtotal)
+	assert.Len(burger.Modifications, 2)
+	assert.Contains(burger.Modifications, "no onions")
+	assert.Contains(burger.Modifications, "extra cheese")
+	assert.Equal("well done", burger.Notes)
+	
+	// Check totals
+	expectedSubtotal := 25.98 + 4.99 + 5.98 // 36.95
+	expectedTax := expectedSubtotal * 0.10
+	expectedTotal := expectedSubtotal + expectedTax
+	
+	assert.InDelta(expectedTax, order.TaxAmount, 0.001)
+	assert.InDelta(expectedTotal, order.TotalAmount, 0.001)
+	
+	// Check notes
+	assert.Contains(order.Notes, "Birthday celebration")
+	
+	// Validate the complete order
+	err := order.Validate()
+	assert.NoError(err)
+}
+
+// Test Error Accumulation
+func (suite *OrderTestSuite) TestMultipleValidationErrors() {
+	// Given
+	order := &Order{
+		ID:         types.NewID[OrderEntity]("ord"),
+		CustomerID: "", // Invalid
+		Type:       OrderTypeDineIn,
+		Status:     OrderStatusCreated,
+		Items:      []*OrderItem{}, // Invalid - empty
+		TableID:    "", // Invalid for dine-in
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	
+	// When
+	err := order.Validate()
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.Error(err)
+	// Should catch the first validation error
+	assert.True(
+		strings.Contains(err.Error(), "customer ID is required") ||
+		strings.Contains(err.Error(), "order must have at least one item") ||
+		strings.Contains(err.Error(), "table ID is required"))
+}
+
+// Test Order State Consistency
+func (suite *OrderTestSuite) TestOrderStateConsistency_AfterCancel() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	order.SetTableID("table-5")
+	order.AddItem("item-1", "Salad", 1, 10.00, nil, "")
+	order.UpdateStatus(OrderStatusPaid)
+	
+	originalTotal := order.TotalAmount
+	originalItemCount := len(order.Items)
+	
+	// When
+	err := order.Cancel()
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err)
+	assert.Equal(OrderStatusCancelled, order.Status)
+	assert.Equal(originalTotal, order.TotalAmount) // Total should remain unchanged
+	assert.Equal(originalItemCount, len(order.Items)) // Items should remain unchanged
+	assert.False(order.CanCancel()) // Cannot cancel again
+}
+
+// Test Zero Price Items
+func (suite *OrderTestSuite) TestAddItem_ZeroPrice_Success() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	
+	// When - Add complimentary item
+	err := order.AddItem("comp-1", "Complimentary Bread", 1, 0.00, nil, "")
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err)
+	assert.Len(order.Items, 1)
+	assert.Equal(0.00, order.Items[0].UnitPrice)
+	assert.Equal(0.00, order.Items[0].Subtotal)
+	assert.Equal(0.00, order.TotalAmount)
+	assert.Equal(0.00, order.TaxAmount)
+}
+
+// Test Large Quantity Orders
+func (suite *OrderTestSuite) TestLargeQuantityOrder() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	largeQuantity := 999
+	unitPrice := 5.99
+	
+	// When
+	err := order.AddItem("bulk-1", "Bulk Item", largeQuantity, unitPrice, nil, "")
+	
+	// Then
+	assert := assert.New(suite.T())
+	assert.NoError(err)
+	
+	expectedSubtotal := float64(largeQuantity) * unitPrice
+	expectedTax := expectedSubtotal * 0.10
+	expectedTotal := expectedSubtotal + expectedTax
+	
+	assert.Equal(expectedSubtotal, order.Items[0].Subtotal)
+	assert.InDelta(expectedTax, order.TaxAmount, 0.01)
+	assert.InDelta(expectedTotal, order.TotalAmount, 0.01)
+}
+
+// Test Status Flow Complete Cycle
+func (suite *OrderTestSuite) TestCompleteOrderLifecycle() {
+	// Given
+	order, _ := NewOrder("customer-123", OrderTypeDineIn)
+	order.SetTableID("table-1")
+	order.AddItem("item-1", "Steak", 1, 35.00, []string{"medium rare"}, "")
+	
+	// When & Then - Follow complete order lifecycle
+	assert := assert.New(suite.T())
+	
+	// Initial state
+	assert.Equal(OrderStatusCreated, order.Status)
+	assert.NoError(order.Validate())
+	
+	// Payment
+	assert.NoError(order.UpdateStatus(OrderStatusPaid))
+	assert.Equal(OrderStatusPaid, order.Status)
+	
+	// Kitchen preparation
+	assert.NoError(order.UpdateStatus(OrderStatusPreparing))
+	assert.Equal(OrderStatusPreparing, order.Status)
+	
+	// Ready for service
+	assert.NoError(order.UpdateStatus(OrderStatusReady))
+	assert.Equal(OrderStatusReady, order.Status)
+	
+	// Completed
+	assert.NoError(order.UpdateStatus(OrderStatusCompleted))
+	assert.Equal(OrderStatusCompleted, order.Status)
+	
+	// Cannot modify completed order
+	assert.Error(order.UpdateStatus(OrderStatusPaid))
+	assert.Error(order.Cancel())
+	assert.Equal(OrderStatusCompleted, order.Status)
 }
