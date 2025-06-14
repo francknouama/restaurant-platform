@@ -1,0 +1,207 @@
+version: '3.8'
+
+services:
+  # === INFRASTRUCTURE ===
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: restaurant-postgres-integration
+    environment:
+      POSTGRES_DB: restaurant_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - ../migrations:/docker-entrypoint-initdb.d
+    networks:
+      - restaurant-integration
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d restaurant_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: restaurant-redis-integration
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    networks:
+      - restaurant-integration
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # === BACKEND SERVICES ===
+  
+  menu-service:
+    build:
+      context: ../menu-service
+      dockerfile: Dockerfile
+    container_name: restaurant-menu-service-integration
+    ports:
+      - "8081:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: restaurant_platform
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      GIN_MODE: release
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant-integration
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ../order-service
+      dockerfile: Dockerfile
+    container_name: restaurant-order-service-integration
+    ports:
+      - "8082:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: restaurant_platform
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      GIN_MODE: release
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant-integration
+    restart: unless-stopped
+
+  kitchen-service:
+    build:
+      context: ../kitchen-service
+      dockerfile: Dockerfile
+    container_name: restaurant-kitchen-service-integration
+    ports:
+      - "8083:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: restaurant_platform
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      GIN_MODE: release
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant-integration
+    restart: unless-stopped
+
+  reservation-service:
+    build:
+      context: ../reservation-service
+      dockerfile: Dockerfile
+    container_name: restaurant-reservation-service-integration
+    ports:
+      - "8084:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: restaurant_platform
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      GIN_MODE: release
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant-integration
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ../inventory-service
+      dockerfile: Dockerfile
+    container_name: restaurant-inventory-service-integration
+    ports:
+      - "8085:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: restaurant_platform
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      GIN_MODE: release
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant-integration
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ../user-service
+      dockerfile: Dockerfile
+    container_name: restaurant-user-service-integration
+    ports:
+      - "8086:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: restaurant_platform
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      GIN_MODE: release
+      JWT_SECRET: integration-test-secret-key
+      JWT_ACCESS_TOKEN_DURATION: 15m
+      JWT_REFRESH_TOKEN_DURATION: 24h
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant-integration
+    restart: unless-stopped
+
+networks:
+  restaurant-integration:
+    driver: bridge

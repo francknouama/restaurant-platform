@@ -1,6 +1,7 @@
 go 1.24.4
 
 use (
+	./integration_tests
 	./inventory-service
 	./kitchen-service
 	./menu-service
