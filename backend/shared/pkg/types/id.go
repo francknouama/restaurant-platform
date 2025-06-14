@@ -43,7 +43,7 @@ func (id *ID[T]) UnmarshalText(text []byte) error {
 
 // NewID creates a new type-safe ID with timestamp-based generation
 func NewID[T EntityMarker](prefix string) ID[T] {
-	timestamp := time.Now().Format("20060102150405")
+	timestamp := time.Now().Format("20060102150405.000000")
 	return ID[T](fmt.Sprintf("%s_%s", prefix, timestamp))
 }
 
