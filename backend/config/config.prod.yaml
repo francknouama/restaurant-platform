@@ -1,0 +1,26 @@
+server:
+  host: "0.0.0.0"
+  port: "8080"
+  mode: "release"
+
+database:
+  host: "${DB_HOST}"
+  port: "${DB_PORT}"
+  username: "${DB_USERNAME}"
+  password: "${DB_PASSWORD}"
+  name: "${DB_NAME}"
+  ssl_mode: "${DB_SSLMODE:require}"
+  max_open_conns: 50
+  max_idle_conns: 10
+
+redis:
+  host: "${REDIS_HOST}"
+  port: "${REDIS_PORT}"
+  password: "${REDIS_PASSWORD}"
+  db: 0
+  pool_size: 20
+
+jwt:
+  secret_key: "${JWT_SECRET_KEY}"
+  expiration_minutes: 60
+  refresh_expiration_hours: 168

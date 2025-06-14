@@ -1,0 +1,26 @@
+server:
+  host: "0.0.0.0"
+  port: "8080"
+  mode: "release"
+
+database:
+  host: "localhost"
+  port: "5432"
+  username: "postgres"
+  password: "postgres123"
+  name: "restaurant_platform"
+  ssl_mode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+  pool_size: 10
+
+jwt:
+  secret_key: "restaurant-platform-secret-key-change-in-production"
+  expiration_minutes: 60
+  refresh_expiration_hours: 168

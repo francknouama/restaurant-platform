@@ -18,7 +18,10 @@ import (
 
 func main() {
 	// Load configuration
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
 
 	// Initialize database connection
 	db, err := infrastructure.NewConnection(&cfg.Database)

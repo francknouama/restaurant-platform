@@ -1,0 +1,26 @@
+server:
+  host: "localhost"
+  port: "8080"
+  mode: "debug"
+
+database:
+  host: "localhost"
+  port: "5432"
+  username: "postgres"
+  password: "postgres123"
+  name: "restaurant_platform_dev"
+  ssl_mode: "disable"
+  max_open_conns: 10
+  max_idle_conns: 2
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 1
+  pool_size: 5
+
+jwt:
+  secret_key: "dev-secret-key-not-for-production"
+  expiration_minutes: 120
+  refresh_expiration_hours: 24
