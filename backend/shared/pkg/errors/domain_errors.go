@@ -92,12 +92,24 @@ func IsNotFound(err error) bool {
 
 // IsValidationError checks if error is a validation error
 func IsValidationError(err error) bool {
-	return errors.Is(err, ErrInvalid)
+	if errors.Is(err, ErrInvalid) {
+		return true
+	}
+	if domainErr, ok := err.(*DomainError); ok {
+		return domainErr.Code == "VALIDATION_FAILED"
+	}
+	return false
 }
 
 // IsConflictError checks if error is a conflict error
 func IsConflictError(err error) bool {
-	return errors.Is(err, ErrConflict)
+	if errors.Is(err, ErrConflict) {
+		return true
+	}
+	if domainErr, ok := err.(*DomainError); ok {
+		return domainErr.Code == "CONFLICT"
+	}
+	return false
 }
 
 // IsUnauthorizedError checks if error is an unauthorized error
