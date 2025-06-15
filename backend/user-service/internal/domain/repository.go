@@ -80,6 +80,7 @@ type AuthenticationService interface {
 
 	// User management
 	GetUser(ctx context.Context, userID UserID) (*UserWithRole, error)
+	ListUsers(ctx context.Context, filters UserFilters) ([]*UserWithRole, error)
 	UpdateUser(ctx context.Context, userID UserID, updates UserUpdates) (*UserWithRole, error)
 	ActivateUser(ctx context.Context, userID UserID) error
 	DeactivateUser(ctx context.Context, userID UserID) error

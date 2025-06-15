@@ -361,6 +361,27 @@ func (a *AuthenticationServiceImpl) GetUser(ctx context.Context, userID domain.U
 	return userWithRole, nil
 }
 
+func (a *AuthenticationServiceImpl) ListUsers(ctx context.Context, filters domain.UserFilters) ([]*domain.UserWithRole, error) {
+	users, err := a.userRepo.ListUsers(ctx, filters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+
+	// Convert users to UserWithRole
+	result := make([]*domain.UserWithRole, 0, len(users))
+	for _, user := range users {
+		userWithRole, err := a.userRepo.GetUserWithRole(ctx, user.ID)
+		if err != nil {
+			// Log error but continue with other users
+			fmt.Printf("Warning: failed to get user with role for user %s: %v\n", user.ID, err)
+			continue
+		}
+		result = append(result, userWithRole)
+	}
+
+	return result, nil
+}
+
 func (a *AuthenticationServiceImpl) UpdateUser(ctx context.Context, userID domain.UserID, updates domain.UserUpdates) (*domain.UserWithRole, error) {
 	user, err := a.userRepo.GetUserByID(ctx, userID)
 	if err != nil {

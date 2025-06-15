@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -197,9 +198,65 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 // User management endpoints (admin only)
 func (h *AuthHandler) GetUsers(c *gin.Context) {
-	// TODO: Add pagination parameters
-	// For now, return empty list as placeholder
-	handleOK(c, application.SuccessResponse([]application.UserResponse{}))
+	// Parse pagination parameters
+	page := 1
+	pageSize := 20
+	
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	
+	if pageSizeStr := c.Query("pageSize"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+	
+	// Build filters
+	filters := domain.UserFilters{
+		Limit:  pageSize,
+		Offset: (page - 1) * pageSize,
+	}
+	
+	// Apply optional filters
+	if roleID := c.Query("roleId"); roleID != "" {
+		if rid, err := application.ParseRoleID(roleID); err == nil {
+			filters.RoleID = &rid
+		}
+	}
+	
+	if email := c.Query("email"); email != "" {
+		filters.Email = email
+	}
+	
+	if activeStr := c.Query("active"); activeStr != "" {
+		if active, err := strconv.ParseBool(activeStr); err == nil {
+			filters.IsActive = &active
+		}
+	}
+	
+	// Get users
+	users, err := h.authService.ListUsers(c.Request.Context(), filters)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	
+	// Convert to response
+	response := make([]application.UserWithRoleResponse, 0, len(users))
+	for _, user := range users {
+		response = append(response, application.UserWithRoleToResponse(user))
+	}
+	
+	// Return paginated response
+	handleOK(c, application.PaginatedResponse{
+		Data: response,
+		Page: page,
+		PageSize: pageSize,
+		Total: len(response),
+	})
 }
 
 func (h *AuthHandler) GetUser(c *gin.Context) {

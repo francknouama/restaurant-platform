@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/restaurant-platform/user-service/internal/domain"
 )
 
@@ -49,6 +50,16 @@ func AuthMiddleware(authService domain.AuthenticationService) gin.HandlerFunc {
 			return
 		}
 
+		// Extract session ID from token claims
+		token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+		if err == nil && token != nil {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if sessionID, exists := claims["sessionId"]; exists {
+					c.Set("sessionID", sessionID)
+				}
+			}
+		}
+
 		// Set user information in context
 		c.Set("userID", userWithRole.User.ID.String())
 		c.Set("email", userWithRole.User.Email)
@@ -56,10 +67,6 @@ func AuthMiddleware(authService domain.AuthenticationService) gin.HandlerFunc {
 		c.Set("roleName", userWithRole.Role.Name)
 		c.Set("permissions", userWithRole.Permissions)
 		c.Set("user", userWithRole)
-
-		// TODO: Extract sessionID from token claims
-		// For now, we'll need to parse the token to get session ID
-		// This should be done in the JWT service
 
 		c.Next()
 	}

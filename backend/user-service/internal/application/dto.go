@@ -103,6 +103,14 @@ type APIResponse[T any] struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// PaginatedResponse for list endpoints
+type PaginatedResponse struct {
+	Data     interface{} `json:"data"`
+	Page     int         `json:"page"`
+	PageSize int         `json:"pageSize"`
+	Total    int         `json:"total"`
+}
+
 // Helper functions for converting domain models to DTOs
 func UserToResponse(user *domain.User) UserResponse {
 	resp := UserResponse{
