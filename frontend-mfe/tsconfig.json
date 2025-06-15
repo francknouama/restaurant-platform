@@ -9,7 +9,6 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
@@ -27,22 +26,8 @@
       "@restaurant/mfe-tools/*": ["./packages/mfe-tools/src/*"]
     }
   },
-  "include": [
-    "apps/**/*",
-    "packages/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build"
-  ],
+  "include": [],
   "references": [
-    { "path": "./apps/shell-app" },
-    { "path": "./apps/menu-mfe" },
-    { "path": "./apps/orders-mfe" },
-    { "path": "./apps/kitchen-mfe" },
-    { "path": "./apps/reservations-mfe" },
-    { "path": "./apps/inventory-mfe" },
     { "path": "./packages/shared-ui" },
     { "path": "./packages/shared-utils" },
     { "path": "./packages/shared-state" },
