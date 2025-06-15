@@ -91,25 +91,28 @@ func (suite *InventoryServiceIntegrationTestSuite) TestCompleteInventoryWorkflow
 	suite.Require().NoError(err)
 	
 	// 4. Record an inbound movement (receiving stock)
-	inboundMovement := &inventory.InventoryMovement{
-		ID:         inventory.NewMovementID(),
-		ItemID:     item.ID,
-		Type:       inventory.MovementTypeInbound,
-		Quantity:   50,
-		Unit:       item.Unit,
-		Cost:       1275, // 50 * 25.50
-		Reason:     "Purchase order received",
-		Reference:  "PO-2025-001",
-		PerformedBy: "warehouse_user",
-		PerformedAt: time.Now(),
-		CreatedAt:  time.Now(),
+	inboundMovement := &inventory.StockMovement{
+		ID:              inventory.NewMovementID(),
+		InventoryItemID: item.ID,
+		ItemID:          item.ID, // Alias for compatibility
+		Type:            inventory.MovementTypeInbound,
+		Quantity:        50,
+		PreviousStock:   item.CurrentStock,
+		NewStock:        item.CurrentStock + 50,
+		Unit:            item.Unit,
+		Cost:            1275, // 50 * 25.50
+		Reason:          "Purchase order received",
+		Reference:       "PO-2025-001",
+		PerformedBy:     "warehouse_user",
+		PerformedAt:     time.Now(),
+		CreatedAt:       time.Now(),
 	}
 	
 	err = suite.repo.CreateMovement(suite.ctx, inboundMovement)
 	suite.Require().NoError(err)
 	
 	// Update stock level
-	item.CurrentStock += inboundMovement.Quantity
+	item.CurrentStock = inboundMovement.NewStock
 	err = suite.repo.UpdateItem(suite.ctx, item)
 	suite.Require().NoError(err)
 	
@@ -119,25 +122,28 @@ func (suite *InventoryServiceIntegrationTestSuite) TestCompleteInventoryWorkflow
 	assert.Equal(suite.T(), 150.0, updatedItem.CurrentStock) // 100 + 50
 	
 	// 6. Record an outbound movement (fulfilling order)
-	outboundMovement := &inventory.InventoryMovement{
-		ID:         inventory.NewMovementID(),
-		ItemID:     item.ID,
-		Type:       inventory.MovementTypeOutbound,
-		Quantity:   30,
-		Unit:       item.Unit,
-		Cost:       765, // 30 * 25.50
-		Reason:     "Order fulfillment",
-		Reference:  "ORDER-2025-001",
-		PerformedBy: "warehouse_user",
-		PerformedAt: time.Now(),
-		CreatedAt:  time.Now(),
+	outboundMovement := &inventory.StockMovement{
+		ID:              inventory.NewMovementID(),
+		InventoryItemID: item.ID,
+		ItemID:          item.ID, // Alias for compatibility
+		Type:            inventory.MovementTypeOutbound,
+		Quantity:        30,
+		PreviousStock:   item.CurrentStock,
+		NewStock:        item.CurrentStock - 30,
+		Unit:            item.Unit,
+		Cost:            765, // 30 * 25.50
+		Reason:          "Order fulfillment",
+		Reference:       "ORDER-2025-001",
+		PerformedBy:     "warehouse_user",
+		PerformedAt:     time.Now(),
+		CreatedAt:       time.Now(),
 	}
 	
 	err = suite.repo.CreateMovement(suite.ctx, outboundMovement)
 	suite.Require().NoError(err)
 	
 	// Update stock level
-	item.CurrentStock -= outboundMovement.Quantity
+	item.CurrentStock = outboundMovement.NewStock
 	err = suite.repo.UpdateItem(suite.ctx, item)
 	suite.Require().NoError(err)
 	
@@ -166,33 +172,37 @@ func (suite *InventoryServiceIntegrationTestSuite) TestLowStockDetection() {
 		InitialStock: 25,
 		Unit:         string(inventory.UnitTypeUnits),
 		Cost:         10.0,
-		MinThreshold: 20, // Low stock threshold
-		ReorderPoint: 30,
+		MinThreshold: 15, // Low stock threshold
+		MaxThreshold: 100,
+		ReorderPoint: 20, // Reorder point is between min and max
 	}
 	
 	item, err := suite.service.CreateInventoryItem(suite.ctx, createCmd)
 	suite.Require().NoError(err)
 	
 	// When - Consume stock to go below threshold
-	outboundMovement := &inventory.InventoryMovement{
-		ID:         inventory.NewMovementID(),
-		ItemID:     item.ID,
-		Type:       inventory.MovementTypeOutbound,
-		Quantity:   10, // This will bring stock to 15, below threshold of 20
-		Unit:       item.Unit,
-		Cost:       100,
-		Reason:     "Order fulfillment",
-		Reference:  "ORDER-LOW-001",
-		PerformedBy: "system",
-		PerformedAt: time.Now(),
-		CreatedAt:  time.Now(),
+	outboundMovement := &inventory.StockMovement{
+		ID:              inventory.NewMovementID(),
+		InventoryItemID: item.ID,
+		ItemID:          item.ID, // Alias for compatibility
+		Type:            inventory.MovementTypeOutbound,
+		Quantity:        10, // This will bring stock to 15, below threshold of 20
+		PreviousStock:   item.CurrentStock,
+		NewStock:        item.CurrentStock - 10,
+		Unit:            item.Unit,
+		Cost:            100,
+		Reason:          "Order fulfillment",
+		Reference:       "ORDER-LOW-001",
+		PerformedBy:     "system",
+		PerformedAt:     time.Now(),
+		CreatedAt:       time.Now(),
 	}
 	
 	err = suite.repo.CreateMovement(suite.ctx, outboundMovement)
 	suite.Require().NoError(err)
 	
 	// Update stock
-	item.CurrentStock -= outboundMovement.Quantity
+	item.CurrentStock = outboundMovement.NewStock
 	err = suite.repo.UpdateItem(suite.ctx, item)
 	suite.Require().NoError(err)
 	
@@ -220,18 +230,21 @@ func (suite *InventoryServiceIntegrationTestSuite) TestStockAdjustmentWorkflow()
 	actualCount := 95.5 // Lost 4.5 kg
 	adjustmentQty := actualCount - item.CurrentStock
 	
-	adjustmentMovement := &inventory.InventoryMovement{
-		ID:         inventory.NewMovementID(),
-		ItemID:     item.ID,
-		Type:       inventory.MovementTypeAdjustment,
-		Quantity:   adjustmentQty, // Negative value for loss
-		Unit:       item.Unit,
-		Cost:       0, // No cost impact for adjustments
-		Reason:     "Physical inventory count - spoilage",
-		Reference:  "ADJUST-2025-001",
-		PerformedBy: "inventory_manager",
-		PerformedAt: time.Now(),
-		CreatedAt:  time.Now(),
+	adjustmentMovement := &inventory.StockMovement{
+		ID:              inventory.NewMovementID(),
+		InventoryItemID: item.ID,
+		ItemID:          item.ID, // Alias for compatibility
+		Type:            inventory.MovementTypeAdjustment,
+		Quantity:        adjustmentQty, // Negative value for loss
+		PreviousStock:   item.CurrentStock,
+		NewStock:        actualCount,
+		Unit:            item.Unit,
+		Cost:            0, // No cost impact for adjustments
+		Reason:          "Physical inventory count - spoilage",
+		Reference:       "ADJUST-2025-001",
+		PerformedBy:     "inventory_manager",
+		PerformedAt:     time.Now(),
+		CreatedAt:       time.Now(),
 	}
 	
 	err = suite.repo.CreateMovement(suite.ctx, adjustmentMovement)
@@ -352,17 +365,20 @@ func (suite *InventoryServiceIntegrationTestSuite) TestMovementReporting() {
 	}
 	
 	for _, m := range movements {
-		movement := &inventory.InventoryMovement{
-			ID:         inventory.NewMovementID(),
-			ItemID:     item.ID,
-			Type:       m.movType,
-			Quantity:   m.quantity,
-			Unit:       item.Unit,
-			Cost:       m.quantity * 15.0,
-			Reason:     "Test movement",
-			PerformedBy: "test_user",
-			PerformedAt: now.AddDate(0, 0, -m.daysAgo),
-			CreatedAt:  now.AddDate(0, 0, -m.daysAgo),
+		movement := &inventory.StockMovement{
+			ID:              inventory.NewMovementID(),
+			InventoryItemID: item.ID,
+			ItemID:          item.ID, // Alias for compatibility
+			Type:            m.movType,
+			Quantity:        m.quantity,
+			PreviousStock:   0, // For test purposes
+			NewStock:        0, // For test purposes
+			Unit:            item.Unit,
+			Cost:            m.quantity * 15.0,
+			Reason:          "Test movement",
+			PerformedBy:     "test_user",
+			PerformedAt:     now.AddDate(0, 0, -m.daysAgo),
+			CreatedAt:       now.AddDate(0, 0, -m.daysAgo),
 		}
 		err := suite.repo.CreateMovement(suite.ctx, movement)
 		suite.Require().NoError(err)

@@ -114,21 +114,37 @@ func (r *InventoryRepository) GetItemBySKU(ctx context.Context, sku string) (*in
 }
 
 func (r *InventoryRepository) UpdateItem(ctx context.Context, item *inventory.InventoryItem) error {
+	// Use SQLite parameter syntax with ? placeholders
 	query := `
 		UPDATE inventory 
-		SET name = $2, description = $3, current_stock = $4, unit = $5,
-		    min_threshold = $6, max_threshold = $7, reorder_point = $8,
-		    cost = $9, category = $10, location = $11, supplier_id = $12,
-		    last_ordered = $13, expiry_date = $14, updated_at = $15
-		WHERE id = $1`
+		SET name = ?, description = ?, current_stock = ?, unit = ?,
+		    min_threshold = ?, max_threshold = ?, reorder_point = ?,
+		    cost = ?, category = ?, location = ?, supplier_id = ?,
+		    last_ordered = ?, expiry_date = ?, updated_at = ?
+		WHERE id = ?`
 
-	_, err := r.db.ExecContext(ctx, query,
-		item.ID.String(), item.Name, item.Description, item.CurrentStock,
-		string(item.Unit), item.MinThreshold, item.MaxThreshold, item.ReorderPoint,
+	result, err := r.db.ExecContext(ctx, query,
+		item.Name, item.Description, item.CurrentStock, string(item.Unit),
+		item.MinThreshold, item.MaxThreshold, item.ReorderPoint,
 		item.Cost, item.Category, item.Location, nullString(item.SupplierID.String()),
-		nullTime(item.LastOrdered), nullTime(item.ExpiryDate), item.UpdatedAt)
+		nullTime(item.LastOrdered), nullTime(item.ExpiryDate), item.UpdatedAt,
+		item.ID.String())
 
-	return err
+	if err != nil {
+		return err
+	}
+	
+	// Check if any rows were affected
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	
+	if rowsAffected == 0 {
+		return fmt.Errorf("no rows updated for item ID %s", item.ID.String())
+	}
+	
+	return nil
 }
 
 func (r *InventoryRepository) CheckStockAvailability(ctx context.Context, sku string, quantity float64) (bool, error) {
@@ -373,6 +389,38 @@ func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.
 	var contactName, email, phone, address, website, notes sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(
+		&idStr, &supplier.Code, &supplier.Name, &contactName, &email, &phone,
+		&address, &website, &notes, &supplier.Rating, &supplier.IsActive,
+		&supplier.CreatedAt, &supplier.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("supplier not found")
+		}
+		return nil, err
+	}
+
+	supplier.ID = inventory.SupplierID(idStr)
+	supplier.ContactInfo.ContactName = contactName.String
+	supplier.ContactInfo.Email = email.String
+	supplier.ContactInfo.Phone = phone.String
+	supplier.ContactInfo.Address = address.String
+	supplier.Website = website.String
+	supplier.Notes = notes.String
+
+	return &supplier, nil
+}
+
+func (r *InventoryRepository) GetSupplierByCode(ctx context.Context, code string) (*inventory.Supplier, error) {
+	query := `
+		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
+		FROM suppliers WHERE code = $1`
+
+	var supplier inventory.Supplier
+	var idStr string
+	var contactName, email, phone, address, website, notes sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, code).Scan(
 		&idStr, &supplier.Code, &supplier.Name, &contactName, &email, &phone,
 		&address, &website, &notes, &supplier.Rating, &supplier.IsActive,
 		&supplier.CreatedAt, &supplier.UpdatedAt)

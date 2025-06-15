@@ -179,7 +179,7 @@ func TestInventoryRepository_StockMovements(t *testing.T) {
 		}
 
 		// Get movements
-		result, err := repo.GetMovementsByItemID(ctx, item.ID, 10)
+		result, err := repo.GetMovementsByItemID(ctx, item.ID, 10, 0)
 		assert.NoError(t, err)
 		assert.GreaterOrEqual(t, len(result), 3) // Including the first movement
 	})
@@ -272,7 +272,7 @@ func TestInventoryRepository_Suppliers(t *testing.T) {
 		}
 
 		// List suppliers
-		suppliers, total, err := repo.ListSuppliers(ctx, 0, 10)
+		suppliers, total, err := repo.ListSuppliersWithPagination(ctx, 0, 10)
 		assert.NoError(t, err)
 		assert.Greater(t, total, 5)
 		assert.GreaterOrEqual(t, len(suppliers), 5)
