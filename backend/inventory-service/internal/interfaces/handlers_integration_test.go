@@ -105,12 +105,33 @@ func (m *mockInventoryRepository) CreateMovement(ctx context.Context, movement *
 	return args.Error(0)
 }
 
-func (m *mockInventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit int) ([]*inventory.StockMovement, error) {
-	args := m.Called(ctx, itemID, limit)
+func (m *mockInventoryRepository) GetMovementByID(ctx context.Context, id inventory.MovementID) (*inventory.StockMovement, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*inventory.StockMovement), args.Error(1)
+}
+
+func (m *mockInventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit, offset int) ([]*inventory.StockMovement, error) {
+	args := m.Called(ctx, itemID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*inventory.StockMovement), args.Error(1)
+}
+
+func (m *mockInventoryRepository) GetMovementsByType(ctx context.Context, movementType inventory.MovementType) ([]*inventory.StockMovement, error) {
+	args := m.Called(ctx, movementType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*inventory.StockMovement), args.Error(1)
+}
+
+func (m *mockInventoryRepository) DeleteMovement(ctx context.Context, id inventory.MovementID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
 func (m *mockInventoryRepository) GetMovementsByDateRange(ctx context.Context, start, end time.Time) ([]*inventory.StockMovement, error) {
@@ -144,7 +165,23 @@ func (m *mockInventoryRepository) DeleteSupplier(ctx context.Context, id invento
 	return args.Error(0)
 }
 
-func (m *mockInventoryRepository) ListSuppliers(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
+func (m *mockInventoryRepository) GetSupplierByCode(ctx context.Context, code string) (*inventory.Supplier, error) {
+	args := m.Called(ctx, code)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*inventory.Supplier), args.Error(1)
+}
+
+func (m *mockInventoryRepository) ListSuppliers(ctx context.Context, activeOnly bool) ([]*inventory.Supplier, error) {
+	args := m.Called(ctx, activeOnly)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*inventory.Supplier), args.Error(1)
+}
+
+func (m *mockInventoryRepository) ListSuppliersWithPagination(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
 	args := m.Called(ctx, offset, limit)
 	if args.Get(0) == nil {
 		return nil, args.Int(1), args.Error(2)
@@ -166,6 +203,14 @@ func (m *mockInventoryRepository) GetItemsBySupplier(ctx context.Context, suppli
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*inventory.InventoryItem), args.Error(1)
+}
+
+func (m *mockInventoryRepository) GetSuppliersByItem(ctx context.Context, itemID inventory.InventoryItemID) ([]*inventory.Supplier, error) {
+	args := m.Called(ctx, itemID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*inventory.Supplier), args.Error(1)
 }
 
 // Mock Event Publisher
@@ -276,7 +321,7 @@ func TestInventoryHandler_StockMovements_Integration(t *testing.T) {
 			},
 		}
 
-		mockRepo.On("GetMovementsByItemID", mock.Anything, itemID, 20).Return(movements, nil)
+		mockRepo.On("GetMovementsByItemID", mock.Anything, itemID, 20, 0).Return(movements, nil)
 
 		req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/inventory/%s/movements?limit=20", itemID), nil)
 		w := httptest.NewRecorder()
