@@ -1,7 +1,10 @@
+-- Kitchen Service Database Schema
+-- Database: kitchen_service_db
+
 -- Create kitchen_orders table
 CREATE TABLE IF NOT EXISTS kitchen_orders (
     id VARCHAR(255) PRIMARY KEY,
-    order_id VARCHAR(255) NOT NULL,
+    order_id VARCHAR(255) NOT NULL, -- Reference to order in Order Service (via events)
     order_items JSONB NOT NULL DEFAULT '[]',
     priority VARCHAR(10) NOT NULL DEFAULT 'NORMAL' 
         CHECK (priority IN ('LOW', 'NORMAL', 'HIGH', 'URGENT')),

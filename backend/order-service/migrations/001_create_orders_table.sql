@@ -1,3 +1,6 @@
+-- Order Service Database Schema
+-- Database: order_service_db
+
 -- Create orders table
 CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(255) PRIMARY KEY,

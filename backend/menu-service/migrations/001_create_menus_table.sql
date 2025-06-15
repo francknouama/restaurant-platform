@@ -1,3 +1,6 @@
+-- Menu Service Database Schema
+-- Database: menu_service_db
+
 -- Create menus table
 CREATE TABLE IF NOT EXISTS menus (
     id VARCHAR(255) PRIMARY KEY,

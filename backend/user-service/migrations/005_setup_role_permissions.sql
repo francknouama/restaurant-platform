@@ -1,6 +1,7 @@
+-- User Service Database Schema - Role Permission Setup
+-- Database: user_service_db
+
 -- Setup default role permissions for restaurant RBAC
--- Migration: 010_setup_role_permissions.sql
--- Description: Assigns permissions to default restaurant roles
 
 -- Admin role - Full access to everything
 INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES

@@ -1,3 +1,6 @@
+-- Reservation Service Database Schema
+-- Database: reservation_service_db
+
 -- Create reservations table
 CREATE TABLE IF NOT EXISTS reservations (
     id VARCHAR(255) PRIMARY KEY,

@@ -1,7 +1,7 @@
--- Create user_sessions table for JWT token management
--- Migration: 009_create_user_sessions_table.sql
--- Description: Creates the user_sessions table for authentication session tracking
+-- User Service Database Schema - Sessions
+-- Database: user_service_db
 
+-- Create user_sessions table for JWT token management
 CREATE TABLE IF NOT EXISTS user_sessions (
     id VARCHAR(255) PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,

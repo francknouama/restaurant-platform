@@ -1,7 +1,7 @@
--- Create roles table for role-based access control
--- Migration: 007_create_roles_table.sql
--- Description: Creates the roles table for RBAC system
+-- User Service Database Schema - Roles
+-- Database: user_service_db
 
+-- Create roles table for role-based access control
 CREATE TABLE IF NOT EXISTS roles (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,

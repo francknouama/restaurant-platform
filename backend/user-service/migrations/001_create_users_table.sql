@@ -1,7 +1,7 @@
--- Create users table with authentication support
--- Migration: 006_create_users_table.sql
--- Description: Creates the users table for authentication and user management
+-- User Service Database Schema
+-- Database: user_service_db
 
+-- Create users table with authentication support
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -23,9 +23,6 @@ CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 ALTER TABLE users 
 ADD CONSTRAINT check_email_format 
 CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$');
-
--- Add role_id foreign key constraint (will be added after roles table is created)
--- ALTER TABLE users ADD CONSTRAINT fk_users_role_id FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT;
 
 -- Update updated_at timestamp automatically
 CREATE OR REPLACE FUNCTION update_updated_at_column()

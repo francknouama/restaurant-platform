@@ -1,7 +1,7 @@
--- Create permissions table for granular access control
--- Migration: 008_create_permissions_table.sql
--- Description: Creates the permissions table and role_permissions junction table
+-- User Service Database Schema - Permissions
+-- Database: user_service_db
 
+-- Create permissions table for granular access control
 CREATE TABLE IF NOT EXISTS permissions (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,

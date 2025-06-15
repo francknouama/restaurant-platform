@@ -1,3 +1,6 @@
+-- Inventory Service Database Schema
+-- Database: inventory_service_db
+
 -- Create inventory table
 CREATE TABLE IF NOT EXISTS inventory (
     id VARCHAR(255) PRIMARY KEY,
@@ -30,7 +33,7 @@ CREATE TABLE IF NOT EXISTS inventory_transactions (
     quantity_after DECIMAL(10, 3) NOT NULL,
     unit_cost DECIMAL(10, 2),
     reason VARCHAR(255),
-    reference_id VARCHAR(255), -- Could reference order_id, etc.
+    reference_id VARCHAR(255), -- Could reference order_id, etc. (event-driven, no FK)
     performed_by VARCHAR(255),
     transaction_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     notes TEXT

@@ -24,34 +24,80 @@ cd backend/
 # Install dependencies
 go mod download
 
-# Run database migrations (manual process)
-for file in migrations/*.sql; do
-    psql -U postgres -d restaurant_platform -f "$file"
-done
+# Setup all microservice databases (one-time setup)
+./setup-databases.sh
 
-# Run the server
-go run cmd/server/main.go
+# Run individual services
+cd menu-service && go run cmd/server/main.go &
+cd order-service && go run cmd/server/main.go &
+cd kitchen-service && go run cmd/server/main.go &
+cd inventory-service && go run cmd/server/main.go &
+cd reservation-service && go run cmd/server/main.go &
+cd user-service && go run cmd/server/main.go &
 
 # Build for production
-go build -o bin/server cmd/server/main.go
+go build -o bin/menu-server menu-service/cmd/server/main.go
+go build -o bin/order-server order-service/cmd/server/main.go
+# ... etc for each service
 ```
 
-### Environment Setup
-Required environment variables:
-```bash
-# Database
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USERNAME=postgres
-export DB_PASSWORD=your_password
-export DB_NAME=restaurant_platform
+### Environment Setup (Per Service)
+Each microservice has its own database - see MIGRATION_GUIDE.md for complete setup:
 
-# Redis
+```bash
+# Menu Service Database
+export MENU_DB_HOST=localhost
+export MENU_DB_PORT=5432
+export MENU_DB_USERNAME=postgres
+export MENU_DB_PASSWORD=your_password
+export MENU_DB_NAME=menu_service_db
+
+# Order Service Database  
+export ORDER_DB_HOST=localhost
+export ORDER_DB_PORT=5432
+export ORDER_DB_USERNAME=postgres
+export ORDER_DB_PASSWORD=your_password
+export ORDER_DB_NAME=order_service_db
+
+# Kitchen Service Database
+export KITCHEN_DB_HOST=localhost
+export KITCHEN_DB_PORT=5432
+export KITCHEN_DB_USERNAME=postgres
+export KITCHEN_DB_PASSWORD=your_password
+export KITCHEN_DB_NAME=kitchen_service_db
+
+# Inventory Service Database
+export INVENTORY_DB_HOST=localhost
+export INVENTORY_DB_PORT=5432
+export INVENTORY_DB_USERNAME=postgres
+export INVENTORY_DB_PASSWORD=your_password
+export INVENTORY_DB_NAME=inventory_service_db
+
+# Reservation Service Database
+export RESERVATION_DB_HOST=localhost
+export RESERVATION_DB_PORT=5432
+export RESERVATION_DB_USERNAME=postgres
+export RESERVATION_DB_PASSWORD=your_password
+export RESERVATION_DB_NAME=reservation_service_db
+
+# User Service Database
+export USER_DB_HOST=localhost
+export USER_DB_PORT=5432
+export USER_DB_USERNAME=postgres
+export USER_DB_PASSWORD=your_password
+export USER_DB_NAME=user_service_db
+
+# Shared Redis (for events/caching)
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 
-# Server
-export SERVER_PORT=8080
+# Service Ports
+export MENU_SERVER_PORT=8081
+export ORDER_SERVER_PORT=8082
+export KITCHEN_SERVER_PORT=8083
+export INVENTORY_SERVER_PORT=8084
+export RESERVATION_SERVER_PORT=8085
+export USER_SERVER_PORT=8086
 ```
 
 ## Domain Model
@@ -86,7 +132,7 @@ The system implements five main business domains:
 
 **HTTP Layer**: Gin router with CORS, logging middleware. RESTful API at `/api/v1/` with comprehensive endpoints for menus and orders.
 
-**Database**: PostgreSQL with JSONB for flexible data storage. Manual migration system - run SQL files in order.
+**Database**: Each microservice has its own PostgreSQL database following database-per-service pattern. Each service maintains independent schemas with JSONB for flexible data storage. Cross-service communication via events, not foreign keys.
 
 **Error Handling**: Domain models contain business rule validation. HTTP handlers return structured error responses with appropriate status codes.
 
