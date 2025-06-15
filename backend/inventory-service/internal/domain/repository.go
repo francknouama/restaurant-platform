@@ -24,17 +24,22 @@ type InventoryRepository interface {
 	
 	// Stock movement operations
 	CreateMovement(ctx context.Context, movement *StockMovement) error
-	GetMovementsByItemID(ctx context.Context, itemID InventoryItemID, limit int) ([]*StockMovement, error)
+	GetMovementByID(ctx context.Context, id MovementID) (*StockMovement, error)
+	GetMovementsByItemID(ctx context.Context, itemID InventoryItemID, limit, offset int) ([]*StockMovement, error)
 	GetMovementsByDateRange(ctx context.Context, start, end time.Time) ([]*StockMovement, error)
+	GetMovementsByType(ctx context.Context, movementType MovementType) ([]*StockMovement, error)
+	DeleteMovement(ctx context.Context, id MovementID) error
 	
 	// Supplier operations
 	CreateSupplier(ctx context.Context, supplier *Supplier) error
 	GetSupplierByID(ctx context.Context, id SupplierID) (*Supplier, error)
 	UpdateSupplier(ctx context.Context, supplier *Supplier) error
 	DeleteSupplier(ctx context.Context, id SupplierID) error
-	ListSuppliers(ctx context.Context, offset, limit int) ([]*Supplier, int, error)
+	ListSuppliers(ctx context.Context, activeOnly bool) ([]*Supplier, error)
+	ListSuppliersWithPagination(ctx context.Context, offset, limit int) ([]*Supplier, int, error)
 	GetActiveSuppliers(ctx context.Context) ([]*Supplier, error)
 	GetItemsBySupplier(ctx context.Context, supplierID SupplierID) ([]*InventoryItem, error)
+	GetSuppliersByItem(ctx context.Context, itemID InventoryItemID) ([]*Supplier, error)
 }
 
 // InventoryFilters defines filtering options for inventory queries

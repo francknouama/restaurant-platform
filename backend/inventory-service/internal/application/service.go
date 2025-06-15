@@ -9,6 +9,20 @@ import (
 	"github.com/restaurant-platform/shared/pkg/errors"
 )
 
+// Command structures for application service
+type CreateInventoryItemCommand struct {
+	SKU          string  `json:"sku"`
+	Name         string  `json:"name"`
+	InitialStock float64 `json:"initial_stock"`
+	Unit         string  `json:"unit"`
+	Cost         float64 `json:"cost"`
+	Category     string  `json:"category,omitempty"`
+	MinThreshold float64 `json:"min_threshold"`
+	MaxThreshold float64 `json:"max_threshold"`
+	ReorderPoint float64 `json:"reorder_point"`
+}
+
+
 // InventoryService provides business logic for inventory operations
 type InventoryService struct {
 	inventoryRepo  inventory.InventoryRepository
@@ -330,9 +344,36 @@ func (s *InventoryService) RecordMovement(ctx context.Context, itemID inventory.
 	return nil
 }
 
+// CreateInventoryItem creates a new inventory item using command
+func (s *InventoryService) CreateInventoryItem(ctx context.Context, cmd CreateInventoryItemCommand) (*inventory.InventoryItem, error) {
+	unitType := inventory.UnitType(cmd.Unit)
+	item, err := inventory.NewInventoryItem(cmd.SKU, cmd.Name, cmd.InitialStock, unitType, cmd.Cost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set additional fields
+	item.Category = cmd.Category
+	if err := item.UpdateThresholds(cmd.MinThreshold, cmd.MaxThreshold, cmd.ReorderPoint); err != nil {
+		return nil, err
+	}
+
+	err = s.inventoryRepo.CreateItem(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
+// GetInventoryItemByID gets an inventory item by ID
+func (s *InventoryService) GetInventoryItemByID(ctx context.Context, id inventory.InventoryItemID) (*inventory.InventoryItem, error) {
+	return s.inventoryRepo.GetItemByID(ctx, id)
+}
+
 // GetMovementsByItemID gets stock movements for an item
 func (s *InventoryService) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit int) ([]*inventory.StockMovement, error) {
-	return s.inventoryRepo.GetMovementsByItemID(ctx, itemID, limit)
+	return s.inventoryRepo.GetMovementsByItemID(ctx, itemID, limit, 0)
 }
 
 // CreateSupplier creates a new supplier with full details
@@ -454,7 +495,7 @@ func (s *InventoryService) DeleteSupplier(ctx context.Context, id inventory.Supp
 
 // ListSuppliers lists suppliers with pagination
 func (s *InventoryService) ListSuppliers(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
-	return s.inventoryRepo.ListSuppliers(ctx, offset, limit)
+	return s.inventoryRepo.ListSuppliersWithPagination(ctx, offset, limit)
 }
 
 // Helper function to check and publish stock alerts

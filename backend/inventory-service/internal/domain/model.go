@@ -29,11 +29,16 @@ type (
 type MovementType string
 
 const (
-	MovementTypeReceived MovementType = "RECEIVED"
-	MovementTypeUsed     MovementType = "USED"
-	MovementTypeWasted   MovementType = "WASTED"
-	MovementTypeAdjusted MovementType = "ADJUSTED"
-	MovementTypeReturned MovementType = "RETURNED"
+	MovementTypeReceived   MovementType = "RECEIVED"
+	MovementTypeUsed       MovementType = "USED"
+	MovementTypeWasted     MovementType = "WASTED"
+	MovementTypeAdjusted   MovementType = "ADJUSTED"
+	MovementTypeReturned   MovementType = "RETURNED"
+	MovementTypeAdjustment MovementType = "ADJUSTMENT"
+	
+	// Aliases for compatibility with tests
+	MovementTypeInbound  = MovementTypeReceived
+	MovementTypeOutbound = MovementTypeUsed
 )
 
 // UnitType represents the unit of measurement for an inventory item
@@ -73,29 +78,47 @@ type InventoryItem struct {
 type StockMovement struct {
 	ID              MovementID      `json:"id"`
 	InventoryItemID InventoryItemID `json:"inventory_item_id"`
+	// Alias for compatibility
+	ItemID          InventoryItemID `json:"item_id"`
 	Type            MovementType    `json:"type"`
 	Quantity        float64         `json:"quantity"`
 	PreviousStock   float64         `json:"previous_stock"`
 	NewStock        float64         `json:"new_stock"`
+	Unit            UnitType        `json:"unit"`
+	Cost            float64         `json:"cost"`
+	Reason          string          `json:"reason,omitempty"`
 	Notes           string          `json:"notes,omitempty"`
 	Reference       string          `json:"reference,omitempty"` // Order ID, supplier delivery ID, etc.
 	PerformedBy     string          `json:"performed_by,omitempty"`
+	PerformedAt     time.Time       `json:"performed_at"`
 	CreatedAt       time.Time       `json:"created_at"`
+}
+
+// ContactInfo represents supplier contact information
+type ContactInfo struct {
+	Email       string `json:"email,omitempty"`
+	Phone       string `json:"phone,omitempty"`
+	Address     string `json:"address,omitempty"`
+	ContactName string `json:"contact_name,omitempty"`
 }
 
 // Supplier represents a vendor that supplies inventory items
 type Supplier struct {
-	ID          SupplierID `json:"id"`
-	Name        string     `json:"name"`
-	ContactName string     `json:"contact_name,omitempty"`
-	Email       string     `json:"email,omitempty"`
-	Phone       string     `json:"phone,omitempty"`
-	Address     string     `json:"address,omitempty"`
-	Website     string     `json:"website,omitempty"`
-	Notes       string     `json:"notes,omitempty"`
-	IsActive    bool       `json:"is_active"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          SupplierID  `json:"id"`
+	Code        string      `json:"code"`
+	Name        string      `json:"name"`
+	ContactInfo ContactInfo `json:"contact_info"`
+	// Legacy fields for backward compatibility
+	ContactName string `json:"contact_name,omitempty"`
+	Email       string `json:"email,omitempty"`
+	Phone       string `json:"phone,omitempty"`
+	Address     string `json:"address,omitempty"`
+	Website     string `json:"website,omitempty"`
+	Notes       string `json:"notes,omitempty"`
+	Rating      float64 `json:"rating"`
+	IsActive    bool    `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // NewInventoryItem creates a new inventory item with validated fields
@@ -170,13 +193,18 @@ func (i *InventoryItem) AddMovement(movementType MovementType, quantity float64,
 	movement := &StockMovement{
 		ID:              types.NewID[MovementEntity]("mov"),
 		InventoryItemID: i.ID,
+		ItemID:          i.ID, // Alias for compatibility
 		Type:            movementType,
 		Quantity:        quantity,
 		PreviousStock:   previousStock,
 		NewStock:        newStock,
+		Unit:            i.Unit,
+		Cost:            quantity * i.Cost,
+		Reason:          notes,
 		Notes:           notes,
 		Reference:       reference,
 		PerformedBy:     performedBy,
+		PerformedAt:     now,
 		CreatedAt:       now,
 	}
 
@@ -284,4 +312,24 @@ func (s *Supplier) Activate() {
 func (s *Supplier) Deactivate() {
 	s.IsActive = false
 	s.UpdatedAt = time.Now()
+}
+
+// Type aliases and helper functions for test compatibility
+
+// InventoryMovement is an alias for StockMovement
+type InventoryMovement = StockMovement
+
+// NewMovementID creates a new movement ID
+func NewMovementID() MovementID {
+	return types.NewID[MovementEntity]("mov")
+}
+
+// NewInventoryItemID creates a new inventory item ID  
+func NewInventoryItemID() InventoryItemID {
+	return types.NewID[InventoryItemEntity]("inv")
+}
+
+// NewSupplierID creates a new supplier ID
+func NewSupplierID() SupplierID {
+	return types.NewID[SupplierEntity]("sup")
 }

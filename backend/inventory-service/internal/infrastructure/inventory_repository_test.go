@@ -14,17 +14,6 @@ import (
 	inventory "github.com/restaurant-platform/inventory-service/internal/domain"
 )
 
-// Extended InventoryRepository for testing with full SQLite implementation
-type TestInventoryRepository struct {
-	*InventoryRepository
-}
-
-// NewTestInventoryRepository creates a test repository with full SQLite implementation
-func NewTestInventoryRepository(db *DB) *TestInventoryRepository {
-	return &TestInventoryRepository{
-		InventoryRepository: NewInventoryRepository(db),
-	}
-}
 
 // UpdateItem implementation compatible with SQLite
 func (r *TestInventoryRepository) UpdateItem(ctx context.Context, item *inventory.InventoryItem) error {

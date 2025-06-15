@@ -13,6 +13,7 @@ import (
 	"github.com/restaurant-platform/inventory-service/internal/infrastructure"
 )
 
+
 // InventoryServiceIntegrationTestSuite tests the complete inventory service with real repository
 type InventoryServiceIntegrationTestSuite struct {
 	suite.Suite

@@ -86,8 +86,8 @@ func (m *MockInventoryRepository) CreateMovement(ctx context.Context, movement *
 	return args.Error(0)
 }
 
-func (m *MockInventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit int) ([]*inventory.StockMovement, error) {
-	args := m.Called(ctx, itemID, limit)
+func (m *MockInventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit, offset int) ([]*inventory.StockMovement, error) {
+	args := m.Called(ctx, itemID, limit, offset)
 	return args.Get(0).([]*inventory.StockMovement), args.Error(1)
 }
 
@@ -119,10 +119,6 @@ func (m *MockInventoryRepository) DeleteSupplier(ctx context.Context, id invento
 	return args.Error(0)
 }
 
-func (m *MockInventoryRepository) ListSuppliers(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
-	args := m.Called(ctx, offset, limit)
-	return args.Get(0).([]*inventory.Supplier), args.Int(1), args.Error(2)
-}
 
 func (m *MockInventoryRepository) GetActiveSuppliers(ctx context.Context) ([]*inventory.Supplier, error) {
 	args := m.Called(ctx)
@@ -132,6 +128,39 @@ func (m *MockInventoryRepository) GetActiveSuppliers(ctx context.Context) ([]*in
 func (m *MockInventoryRepository) GetItemsBySupplier(ctx context.Context, supplierID inventory.SupplierID) ([]*inventory.InventoryItem, error) {
 	args := m.Called(ctx, supplierID)
 	return args.Get(0).([]*inventory.InventoryItem), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetMovementByID(ctx context.Context, id inventory.MovementID) (*inventory.StockMovement, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*inventory.StockMovement), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetMovementsByType(ctx context.Context, movementType inventory.MovementType) ([]*inventory.StockMovement, error) {
+	args := m.Called(ctx, movementType)
+	return args.Get(0).([]*inventory.StockMovement), args.Error(1)
+}
+
+func (m *MockInventoryRepository) DeleteMovement(ctx context.Context, id inventory.MovementID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) ListSuppliers(ctx context.Context, activeOnly bool) ([]*inventory.Supplier, error) {
+	args := m.Called(ctx, activeOnly)
+	return args.Get(0).([]*inventory.Supplier), args.Error(1)
+}
+
+func (m *MockInventoryRepository) ListSuppliersWithPagination(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
+	args := m.Called(ctx, offset, limit)
+	return args.Get(0).([]*inventory.Supplier), args.Int(1), args.Error(2)
+}
+
+func (m *MockInventoryRepository) GetSuppliersByItem(ctx context.Context, itemID inventory.InventoryItemID) ([]*inventory.Supplier, error) {
+	args := m.Called(ctx, itemID)
+	return args.Get(0).([]*inventory.Supplier), args.Error(1)
 }
 
 // Mock Event Publisher

@@ -235,12 +235,13 @@ func (r *InventoryRepository) queryItems(ctx context.Context, query string, args
 // Supplier operations
 func (r *InventoryRepository) CreateSupplier(ctx context.Context, supplier *inventory.Supplier) error {
 	query := `
-		INSERT INTO suppliers (id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+		INSERT INTO suppliers (id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err := r.db.ExecContext(ctx, query,
-		supplier.ID.String(), supplier.Name, supplier.ContactName, supplier.Email,
-		supplier.Phone, supplier.Address, supplier.Website, supplier.Notes,
+		supplier.ID.String(), supplier.Code, supplier.Name, supplier.ContactInfo.ContactName,
+		supplier.ContactInfo.Email, supplier.ContactInfo.Phone, supplier.ContactInfo.Address,
+		nullString(supplier.Website), nullString(supplier.Notes), supplier.Rating,
 		supplier.IsActive, supplier.CreatedAt, supplier.UpdatedAt)
 
 	return err
@@ -279,44 +280,92 @@ func (r *InventoryRepository) CreateMovement(ctx context.Context, movement *inve
 	query := `
 		INSERT INTO stock_movements (
 			id, inventory_item_id, type, quantity, previous_stock, new_stock,
-			notes, reference, performed_by, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+			unit, cost, reason, reference, performed_by, performed_at, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		movement.ID.String(), movement.InventoryItemID.String(), string(movement.Type),
 		movement.Quantity, movement.PreviousStock, movement.NewStock,
-		nullString(movement.Notes), nullString(movement.Reference),
-		nullString(movement.PerformedBy), movement.CreatedAt)
+		string(movement.Unit), movement.Cost, nullString(movement.Reason),
+		nullString(movement.Reference), nullString(movement.PerformedBy),
+		movement.PerformedAt, movement.CreatedAt)
 
 	return err
 }
 
-func (r *InventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit int) ([]*inventory.StockMovement, error) {
+func (r *InventoryRepository) GetMovementByID(ctx context.Context, id inventory.MovementID) (*inventory.StockMovement, error) {
 	query := `
 		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
-		       notes, reference, performed_by, created_at
+		       unit, cost, reason, reference, performed_by, performed_at, created_at
+		FROM stock_movements 
+		WHERE id = $1`
+
+	movements, err := r.queryMovements(ctx, query, id.String())
+	if err != nil {
+		return nil, err
+	}
+	if len(movements) == 0 {
+		return nil, fmt.Errorf("movement not found")
+	}
+	return movements[0], nil
+}
+
+func (r *InventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit, offset int) ([]*inventory.StockMovement, error) {
+	query := `
+		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
+		       unit, cost, reason, reference, performed_by, performed_at, created_at
 		FROM stock_movements 
 		WHERE inventory_item_id = $1
-		ORDER BY created_at DESC
-		LIMIT $2`
+		ORDER BY performed_at DESC
+		LIMIT $2 OFFSET $3`
 
-	return r.queryMovements(ctx, query, itemID.String(), limit)
+	return r.queryMovements(ctx, query, itemID.String(), limit, offset)
 }
 
 func (r *InventoryRepository) GetMovementsByDateRange(ctx context.Context, start, end time.Time) ([]*inventory.StockMovement, error) {
 	query := `
 		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
-		       notes, reference, performed_by, created_at
+		       unit, cost, reason, reference, performed_by, performed_at, created_at
 		FROM stock_movements 
-		WHERE created_at >= $1 AND created_at <= $2
-		ORDER BY created_at DESC`
+		WHERE performed_at >= $1 AND performed_at <= $2
+		ORDER BY performed_at DESC`
 
 	return r.queryMovements(ctx, query, start, end)
 }
 
+func (r *InventoryRepository) GetMovementsByType(ctx context.Context, movementType inventory.MovementType) ([]*inventory.StockMovement, error) {
+	query := `
+		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
+		       unit, cost, reason, reference, performed_by, performed_at, created_at
+		FROM stock_movements 
+		WHERE type = $1
+		ORDER BY performed_at DESC`
+
+	return r.queryMovements(ctx, query, string(movementType))
+}
+
+func (r *InventoryRepository) DeleteMovement(ctx context.Context, id inventory.MovementID) error {
+	query := `DELETE FROM stock_movements WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id.String())
+	if err != nil {
+		return err
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	
+	if rowsAffected == 0 {
+		return fmt.Errorf("movement not found")
+	}
+	
+	return nil
+}
+
 func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.SupplierID) (*inventory.Supplier, error) {
 	query := `
-		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
 		FROM suppliers WHERE id = $1`
 
 	var supplier inventory.Supplier
@@ -324,8 +373,8 @@ func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.
 	var contactName, email, phone, address, website, notes sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(
-		&idStr, &supplier.Name, &contactName, &email, &phone,
-		&address, &website, &notes, &supplier.IsActive,
+		&idStr, &supplier.Code, &supplier.Name, &contactName, &email, &phone,
+		&address, &website, &notes, &supplier.Rating, &supplier.IsActive,
 		&supplier.CreatedAt, &supplier.UpdatedAt)
 
 	if err != nil {
@@ -336,10 +385,10 @@ func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.
 	}
 
 	supplier.ID = inventory.SupplierID(idStr)
-	supplier.ContactName = contactName.String
-	supplier.Email = email.String
-	supplier.Phone = phone.String
-	supplier.Address = address.String
+	supplier.ContactInfo.ContactName = contactName.String
+	supplier.ContactInfo.Email = email.String
+	supplier.ContactInfo.Phone = phone.String
+	supplier.ContactInfo.Address = address.String
 	supplier.Website = website.String
 	supplier.Notes = notes.String
 
@@ -349,15 +398,16 @@ func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.
 func (r *InventoryRepository) UpdateSupplier(ctx context.Context, supplier *inventory.Supplier) error {
 	query := `
 		UPDATE suppliers 
-		SET name = $2, contact_name = $3, email = $4, phone = $5,
-		    address = $6, website = $7, notes = $8, is_active = $9, updated_at = $10
+		SET code = $2, name = $3, contact_name = $4, email = $5, phone = $6,
+		    address = $7, website = $8, notes = $9, rating = $10, is_active = $11, updated_at = $12
 		WHERE id = $1`
 
 	_, err := r.db.ExecContext(ctx, query,
-		supplier.ID.String(), supplier.Name, nullString(supplier.ContactName),
-		nullString(supplier.Email), nullString(supplier.Phone),
-		nullString(supplier.Address), nullString(supplier.Website),
-		nullString(supplier.Notes), supplier.IsActive, supplier.UpdatedAt)
+		supplier.ID.String(), supplier.Code, supplier.Name,
+		nullString(supplier.ContactInfo.ContactName), nullString(supplier.ContactInfo.Email),
+		nullString(supplier.ContactInfo.Phone), nullString(supplier.ContactInfo.Address),
+		nullString(supplier.Website), nullString(supplier.Notes), supplier.Rating,
+		supplier.IsActive, supplier.UpdatedAt)
 
 	return err
 }
@@ -368,7 +418,17 @@ func (r *InventoryRepository) DeleteSupplier(ctx context.Context, id inventory.S
 	return err
 }
 
-func (r *InventoryRepository) ListSuppliers(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
+func (r *InventoryRepository) ListSuppliers(ctx context.Context, activeOnly bool) ([]*inventory.Supplier, error) {
+	query := `
+		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		FROM suppliers 
+		WHERE ($1 = false OR is_active = true)
+		ORDER BY name ASC`
+
+	return r.querySuppliers(ctx, query, activeOnly)
+}
+
+func (r *InventoryRepository) ListSuppliersWithPagination(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
 	countQuery := `SELECT COUNT(*) FROM suppliers`
 	var total int
 	err := r.db.QueryRowContext(ctx, countQuery).Scan(&total)
@@ -384,6 +444,16 @@ func (r *InventoryRepository) ListSuppliers(ctx context.Context, offset, limit i
 
 	suppliers, err := r.querySuppliers(ctx, query, limit, offset)
 	return suppliers, total, err
+}
+
+func (r *InventoryRepository) GetSuppliersByItem(ctx context.Context, itemID inventory.InventoryItemID) ([]*inventory.Supplier, error) {
+	query := `
+		SELECT s.id, s.name, s.contact_name, s.email, s.phone, s.address, s.website, s.notes, s.is_active, s.created_at, s.updated_at
+		FROM suppliers s
+		JOIN inventory i ON s.id = i.supplier_id
+		WHERE i.id = $1`
+
+	return r.querySuppliers(ctx, query, itemID.String())
 }
 
 func (r *InventoryRepository) GetActiveSuppliers(ctx context.Context) ([]*inventory.Supplier, error) {
@@ -419,13 +489,14 @@ func (r *InventoryRepository) queryMovements(ctx context.Context, query string, 
 	var movements []*inventory.StockMovement
 	for rows.Next() {
 		var movement inventory.StockMovement
-		var idStr, itemIDStr, typeStr string
-		var notes, reference, performedBy sql.NullString
+		var idStr, itemIDStr, typeStr, unitStr string
+		var reason, reference, performedBy sql.NullString
 
 		err := rows.Scan(
 			&idStr, &itemIDStr, &typeStr, &movement.Quantity,
 			&movement.PreviousStock, &movement.NewStock,
-			&notes, &reference, &performedBy, &movement.CreatedAt)
+			&unitStr, &movement.Cost, &reason, &reference, &performedBy,
+			&movement.PerformedAt, &movement.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -433,7 +504,8 @@ func (r *InventoryRepository) queryMovements(ctx context.Context, query string, 
 		movement.ID = inventory.MovementID(idStr)
 		movement.InventoryItemID = inventory.InventoryItemID(itemIDStr)
 		movement.Type = inventory.MovementType(typeStr)
-		movement.Notes = notes.String
+		movement.Unit = inventory.UnitType(unitStr)
+		movement.Reason = reason.String
 		movement.Reference = reference.String
 		movement.PerformedBy = performedBy.String
 
@@ -458,18 +530,18 @@ func (r *InventoryRepository) querySuppliers(ctx context.Context, query string, 
 		var contactName, email, phone, address, website, notes sql.NullString
 
 		err := rows.Scan(
-			&idStr, &supplier.Name, &contactName, &email, &phone,
-			&address, &website, &notes, &supplier.IsActive,
+			&idStr, &supplier.Code, &supplier.Name, &contactName, &email, &phone,
+			&address, &website, &notes, &supplier.Rating, &supplier.IsActive,
 			&supplier.CreatedAt, &supplier.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 
 		supplier.ID = inventory.SupplierID(idStr)
-		supplier.ContactName = contactName.String
-		supplier.Email = email.String
-		supplier.Phone = phone.String
-		supplier.Address = address.String
+		supplier.ContactInfo.ContactName = contactName.String
+		supplier.ContactInfo.Email = email.String
+		supplier.ContactInfo.Phone = phone.String
+		supplier.ContactInfo.Address = address.String
 		supplier.Website = website.String
 		supplier.Notes = notes.String
 
