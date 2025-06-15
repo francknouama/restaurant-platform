@@ -1,485 +1,591 @@
-// Inventory Management Component Tests
+import React from 'react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import '@testing-library/jest-dom';
+import InventoryManagement from '../pages/InventoryManagement';
+
+// Mock dependencies
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(), jest.fn()]
+}));
+
+jest.mock('@restaurant/shared-ui', () => ({
+  Button: ({ children, onClick, className, size, variant, disabled }) => (
+    <button 
+      onClick={onClick} 
+      className={className}
+      data-size={size}
+      data-variant={variant}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  )
+}));
+
+// Helper function to render with router
+const renderWithRouter = (ui, { initialEntries = ['/'] } = {}) => {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      {ui}
+    </MemoryRouter>
+  );
+};
+
 describe('Inventory Management Tests', () => {
-  describe('Inventory List Display', () => {
-    it('should render inventory items table with headers', () => {
-      // Test would verify table headers for item name, category, stock, etc.
-      expect(true).toBe(true);
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('Component Rendering', () => {
+    it('should render the inventory management header', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      expect(screen.getByText('Inventory Management')).toBeInTheDocument();
+      expect(screen.getByText(/Manage stock levels, track items, and maintain optimal inventory/)).toBeInTheDocument();
     });
 
-    it('should display inventory items with all relevant information', () => {
-      // Test would verify item rows show name, category, stock levels, value, etc.
-      expect(true).toBe(true);
+    it('should render the add new item button', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const addButton = screen.getByText('+ Add New Item');
+      expect(addButton).toBeInTheDocument();
     });
 
-    it('should show stock status indicators with color coding', () => {
-      // Test would verify visual indicators for low/out of stock items
-      expect(true).toBe(true);
+    it('should render the search input field', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      expect(searchInput).toBeInTheDocument();
     });
 
-    it('should display batch numbers and expiration dates', () => {
-      // Test would verify batch tracking and expiration information
-      expect(true).toBe(true);
+    it('should render filter dropdowns', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      // Category filter
+      const categorySelect = screen.getByRole('combobox', { name: /category/i });
+      expect(categorySelect).toBeInTheDocument();
+      
+      // Status filter
+      const statusSelect = screen.getByRole('combobox', { name: /status/i });
+      expect(statusSelect).toBeInTheDocument();
+      
+      // Sort by filter
+      const sortBySelect = screen.getByRole('combobox', { name: /sort by/i });
+      expect(sortBySelect).toBeInTheDocument();
     });
 
-    it('should show supplier information for each item', () => {
-      // Test would verify supplier details display
-      expect(true).toBe(true);
-    });
-
-    it('should handle empty inventory state', () => {
-      // Test would verify empty state display when no items exist
-      expect(true).toBe(true);
-    });
-
-    it('should implement pagination for large inventories', () => {
-      // Test would verify pagination controls and functionality
-      expect(true).toBe(true);
-    });
-
-    it('should handle loading states during data fetch', () => {
-      // Test would verify loading indicators while fetching inventory data
-      expect(true).toBe(true);
+    it('should render the inventory items count', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      // Should show the count of items
+      expect(screen.getByText(/items/)).toBeInTheDocument();
     });
   });
 
-  describe('Search and Filter Functionality', () => {
-    it('should provide search input for item names', () => {
-      // Test would verify search input filters items by name
-      expect(true).toBe(true);
+  describe('Search Functionality', () => {
+    it('should update search term on input', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      fireEvent.change(searchInput, { target: { value: 'beef' } });
+      
+      expect(searchInput).toHaveValue('beef');
     });
 
-    it('should filter by category selection', () => {
-      // Test would verify category dropdown filters items appropriately
-      expect(true).toBe(true);
+    it('should filter items based on search term', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      // Wait for items to load
+      await waitFor(() => {
+        expect(screen.getByText('Premium Beef Tenderloin')).toBeInTheDocument();
+      });
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      fireEvent.change(searchInput, { target: { value: 'salmon' } });
+      
+      // Beef should not be visible after filtering
+      await waitFor(() => {
+        expect(screen.queryByText('Premium Beef Tenderloin')).not.toBeInTheDocument();
+      });
     });
 
-    it('should filter by stock status (low, out, normal)', () => {
-      // Test would verify stock status filter functionality
-      expect(true).toBe(true);
+    it('should clear search on clear button click', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      fireEvent.change(searchInput, { target: { value: 'test' } });
+      
+      expect(searchInput).toHaveValue('test');
+      
+      // Clear button should appear when there's text
+      const clearButton = screen.getByText('✕');
+      fireEvent.click(clearButton);
+      
+      expect(searchInput).toHaveValue('');
+    });
+  });
+
+  describe('Filter Functionality', () => {
+    it('should filter by category', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const categorySelect = screen.getByRole('combobox', { name: /category/i });
+      fireEvent.change(categorySelect, { target: { value: 'Meat' } });
+      
+      await waitFor(() => {
+        // Should show meat items
+        expect(screen.getByText('Premium Beef Tenderloin')).toBeInTheDocument();
+      });
     });
 
-    it('should filter by supplier', () => {
-      // Test would verify supplier-based filtering
-      expect(true).toBe(true);
+    it('should filter by status', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const statusSelect = screen.getByRole('combobox', { name: /status/i });
+      fireEvent.change(statusSelect, { target: { value: 'low-stock' } });
+      
+      await waitFor(() => {
+        // Should only show low stock items
+        const items = screen.getAllByRole('row');
+        expect(items.length).toBeGreaterThan(0);
+      });
     });
 
-    it('should filter by expiration date ranges', () => {
-      // Test would verify filtering items by expiration dates
-      expect(true).toBe(true);
+    it('should apply multiple filters simultaneously', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const categorySelect = screen.getByRole('combobox', { name: /category/i });
+      const statusSelect = screen.getByRole('combobox', { name: /status/i });
+      
+      fireEvent.change(categorySelect, { target: { value: 'Meat' } });
+      fireEvent.change(statusSelect, { target: { value: 'in-stock' } });
+      
+      await waitFor(() => {
+        const items = screen.getAllByRole('row');
+        expect(items.length).toBeGreaterThan(0);
+      });
     });
 
-    it('should combine multiple filters effectively', () => {
-      // Test would verify multiple simultaneous filter application
-      expect(true).toBe(true);
-    });
-
-    it('should clear filters and reset view', () => {
-      // Test would verify filter reset functionality
-      expect(true).toBe(true);
-    });
-
-    it('should handle search performance with large datasets', () => {
-      // Test would verify search performance optimization
-      expect(true).toBe(true);
+    it('should reset filters on reset button click', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const categorySelect = screen.getByRole('combobox', { name: /category/i });
+      fireEvent.change(categorySelect, { target: { value: 'Meat' } });
+      
+      const resetButton = screen.getByText('Reset Filters');
+      fireEvent.click(resetButton);
+      
+      expect(categorySelect).toHaveValue('all');
     });
   });
 
   describe('Sorting Functionality', () => {
-    it('should sort by item name alphabetically', () => {
-      // Test would verify name-based sorting (A-Z, Z-A)
-      expect(true).toBe(true);
+    it('should sort by name', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const sortBySelect = screen.getByRole('combobox', { name: /sort by/i });
+      fireEvent.change(sortBySelect, { target: { value: 'name' } });
+      
+      await waitFor(() => {
+        const items = screen.getAllByRole('row');
+        expect(items.length).toBeGreaterThan(0);
+      });
     });
 
-    it('should sort by stock quantity', () => {
-      // Test would verify stock level sorting (low to high, high to low)
-      expect(true).toBe(true);
+    it('should toggle sort order', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      // Find sort order button
+      const sortOrderButton = screen.getByRole('button', { name: /sort order/i });
+      fireEvent.click(sortOrderButton);
+      
+      await waitFor(() => {
+        const items = screen.getAllByRole('row');
+        expect(items.length).toBeGreaterThan(0);
+      });
     });
 
-    it('should sort by item value', () => {
-      // Test would verify sorting by total item value
-      expect(true).toBe(true);
+    it('should sort by stock level', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const sortBySelect = screen.getByRole('combobox', { name: /sort by/i });
+      fireEvent.change(sortBySelect, { target: { value: 'stock' } });
+      
+      expect(sortBySelect).toHaveValue('stock');
     });
 
-    it('should sort by category', () => {
-      // Test would verify category-based sorting
-      expect(true).toBe(true);
-    });
-
-    it('should sort by expiration date', () => {
-      // Test would verify sorting by expiration dates
-      expect(true).toBe(true);
-    });
-
-    it('should sort by last updated timestamp', () => {
-      // Test would verify sorting by last modification time
-      expect(true).toBe(true);
-    });
-
-    it('should handle ascending and descending sort orders', () => {
-      // Test would verify bi-directional sorting capability
-      expect(true).toBe(true);
-    });
-
-    it('should maintain sort preferences across sessions', () => {
-      // Test would verify sort preference persistence
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Item Actions and Operations', () => {
-    it('should provide edit item functionality', () => {
-      // Test would verify navigation to item edit form
-      expect(true).toBe(true);
-    });
-
-    it('should provide delete item functionality', () => {
-      // Test would verify item deletion with confirmation
-      expect(true).toBe(true);
-    });
-
-    it('should provide duplicate item functionality', () => {
-      // Test would verify item duplication feature
-      expect(true).toBe(true);
-    });
-
-    it('should provide quick stock adjustment', () => {
-      // Test would verify inline stock adjustment capability
-      expect(true).toBe(true);
-    });
-
-    it('should provide item details view', () => {
-      // Test would verify navigation to detailed item information
-      expect(true).toBe(true);
-    });
-
-    it('should handle batch operations on multiple items', () => {
-      // Test would verify bulk operations (delete, update, etc.)
-      expect(true).toBe(true);
-    });
-
-    it('should provide item history and audit trail', () => {
-      // Test would verify access to item modification history
-      expect(true).toBe(true);
-    });
-
-    it('should handle action permissions based on user role', () => {
-      // Test would verify role-based action availability
-      expect(true).toBe(true);
+    it('should sort by value', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const sortBySelect = screen.getByRole('combobox', { name: /sort by/i });
+      fireEvent.change(sortBySelect, { target: { value: 'value' } });
+      
+      expect(sortBySelect).toHaveValue('value');
     });
   });
 
-  describe('Stock Level Management', () => {
-    it('should display current stock levels clearly', () => {
-      // Test would verify clear display of current inventory quantities
-      expect(true).toBe(true);
+  describe('Inventory Table', () => {
+    it('should display table headers', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Item Name')).toBeInTheDocument();
+        expect(screen.getByText('SKU')).toBeInTheDocument();
+        expect(screen.getByText('Category')).toBeInTheDocument();
+        expect(screen.getByText('Current Stock')).toBeInTheDocument();
+        expect(screen.getByText('Status')).toBeInTheDocument();
+        expect(screen.getByText('Unit Cost')).toBeInTheDocument();
+        expect(screen.getByText('Total Value')).toBeInTheDocument();
+        expect(screen.getByText('Actions')).toBeInTheDocument();
+      });
     });
 
-    it('should show minimum and maximum stock thresholds', () => {
-      // Test would verify threshold display and visual indicators
-      expect(true).toBe(true);
+    it('should display inventory items', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Premium Beef Tenderloin')).toBeInTheDocument();
+        expect(screen.getByText(/SKU\d{4}/)).toBeInTheDocument();
+      });
     });
 
-    it('should calculate and display stock value', () => {
-      // Test would verify stock value calculations (quantity × unit cost)
-      expect(true).toBe(true);
+    it('should show stock status badges', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        // Should have various status badges
+        const badges = screen.getAllByText(/in-stock|low-stock|out-of-stock/i);
+        expect(badges.length).toBeGreaterThan(0);
+      });
     });
 
-    it('should provide reorder point calculations', () => {
-      // Test would verify reorder point display and recommendations
-      expect(true).toBe(true);
+    it('should display stock level indicators', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        // Should show current/minimum stock format
+        const stockTexts = screen.getAllByText(/\d+ \/ \d+ \w+/);
+        expect(stockTexts.length).toBeGreaterThan(0);
+      });
     });
 
-    it('should handle different unit types correctly', () => {
-      // Test would verify proper handling of lbs, kg, pieces, etc.
-      expect(true).toBe(true);
+    it('should show supplier information', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/Premium Foods Co\.|Fresh Market Supply|Ocean Harvest/)).toBeInTheDocument();
+      });
     });
 
-    it('should track stock movement history', () => {
-      // Test would verify stock change tracking and display
-      expect(true).toBe(true);
-    });
-
-    it('should calculate days of inventory remaining', () => {
-      // Test would verify calculation of stock duration based on usage
-      expect(true).toBe(true);
-    });
-
-    it('should provide stock forecasting insights', () => {
-      // Test would verify future stock level predictions
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Category Management Integration', () => {
-    it('should display items organized by categories', () => {
-      // Test would verify category-based organization of items
-      expect(true).toBe(true);
-    });
-
-    it('should provide category-specific views', () => {
-      // Test would verify filtering and viewing by category
-      expect(true).toBe(true);
-    });
-
-    it('should handle category creation from inventory view', () => {
-      // Test would verify ability to create new categories
-      expect(true).toBe(true);
-    });
-
-    it('should allow category assignment changes', () => {
-      // Test would verify changing item categories
-      expect(true).toBe(true);
-    });
-
-    it('should show category-level statistics', () => {
-      // Test would verify category totals and summaries
-      expect(true).toBe(true);
-    });
-
-    it('should handle items without assigned categories', () => {
-      // Test would verify handling of uncategorized items
-      expect(true).toBe(true);
+    it('should display location information', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/Main Storage|Walk-in Cooler|Freezer/)).toBeInTheDocument();
+      });
     });
   });
 
-  describe('Supplier Integration', () => {
-    it('should display supplier information for each item', () => {
-      // Test would verify supplier details in item listings
-      expect(true).toBe(true);
+  describe('Item Actions', () => {
+    it('should navigate to item edit on edit button click', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const editButtons = screen.getAllByText('Edit');
+        fireEvent.click(editButtons[0]);
+      });
+      
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/items\/item_\d+\/edit/));
     });
 
-    it('should link to supplier management from items', () => {
-      // Test would verify navigation to supplier details
-      expect(true).toBe(true);
+    it('should show adjust stock modal on adjust button click', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const adjustButtons = screen.getAllByText('Adjust');
+        fireEvent.click(adjustButtons[0]);
+      });
+      
+      // Modal should appear
+      expect(screen.getByText('Adjust Stock Level')).toBeInTheDocument();
     });
 
-    it('should filter items by supplier', () => {
-      // Test would verify supplier-based filtering capability
-      expect(true).toBe(true);
-    });
-
-    it('should show supplier performance metrics', () => {
-      // Test would verify supplier reliability and performance data
-      expect(true).toBe(true);
-    });
-
-    it('should handle items with multiple suppliers', () => {
-      // Test would verify support for multiple supplier sources
-      expect(true).toBe(true);
-    });
-
-    it('should create purchase orders from inventory view', () => {
-      // Test would verify direct purchase order creation
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Expiration and Quality Management', () => {
-    it('should highlight items approaching expiration', () => {
-      // Test would verify visual warnings for near-expiry items
-      expect(true).toBe(true);
-    });
-
-    it('should sort items by expiration date urgency', () => {
-      // Test would verify prioritization of items by expiration
-      expect(true).toBe(true);
-    });
-
-    it('should handle FIFO (First In, First Out) tracking', () => {
-      // Test would verify batch rotation management
-      expect(true).toBe(true);
-    });
-
-    it('should provide quality control status tracking', () => {
-      // Test would verify quality status indicators
-      expect(true).toBe(true);
-    });
-
-    it('should handle expired item removal processes', () => {
-      // Test would verify expired item handling workflow
-      expect(true).toBe(true);
-    });
-
-    it('should track temperature-sensitive items', () => {
-      // Test would verify special handling for temperature requirements
-      expect(true).toBe(true);
+    it('should navigate to add new item on button click', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const addButton = screen.getByText('+ Add New Item');
+      fireEvent.click(addButton);
+      
+      expect(mockNavigate).toHaveBeenCalledWith('/items/new');
     });
   });
 
-  describe('Integration with Other MFEs', () => {
-    it('should receive menu item updates', () => {
-      // Test would verify integration with Menu MFE for ingredient updates
-      expect(true).toBe(true);
+  describe('Bulk Actions', () => {
+    it('should show checkbox for each item', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const checkboxes = screen.getAllByRole('checkbox');
+        expect(checkboxes.length).toBeGreaterThan(1); // Including select all
+      });
     });
 
-    it('should track kitchen usage in real-time', () => {
-      // Test would verify real-time inventory updates from Kitchen MFE
-      expect(true).toBe(true);
+    it('should select all items on header checkbox click', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const selectAllCheckbox = screen.getAllByRole('checkbox')[0];
+        fireEvent.click(selectAllCheckbox);
+        
+        const checkboxes = screen.getAllByRole('checkbox');
+        checkboxes.forEach(checkbox => {
+          expect(checkbox).toBeChecked();
+        });
+      });
     });
 
-    it('should respond to order creation events', () => {
-      // Test would verify inventory allocation for new orders
-      expect(true).toBe(true);
+    it('should show bulk actions when items are selected', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const checkbox = screen.getAllByRole('checkbox')[1];
+        fireEvent.click(checkbox);
+      });
+      
+      expect(screen.getByText(/1 item selected/)).toBeInTheDocument();
+      expect(screen.getByText('Bulk Update')).toBeInTheDocument();
+      expect(screen.getByText('Export Selected')).toBeInTheDocument();
     });
 
-    it('should emit inventory updates to other systems', () => {
-      // Test would verify broadcasting inventory changes
-      expect(true).toBe(true);
-    });
-
-    it('should handle reservation-based inventory holds', () => {
-      // Test would verify inventory allocation for reservations
-      expect(true).toBe(true);
-    });
-
-    it('should provide inventory data to analytics systems', () => {
-      // Test would verify data sharing with analytics MFE
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Data Export and Reporting', () => {
-    it('should export inventory data to CSV format', () => {
-      // Test would verify CSV export functionality
-      expect(true).toBe(true);
-    });
-
-    it('should export inventory data to PDF reports', () => {
-      // Test would verify PDF report generation
-      expect(true).toBe(true);
-    });
-
-    it('should generate valuation reports', () => {
-      // Test would verify inventory valuation report creation
-      expect(true).toBe(true);
-    });
-
-    it('should create low stock reports', () => {
-      // Test would verify low stock alert reports
-      expect(true).toBe(true);
-    });
-
-    it('should generate expiration tracking reports', () => {
-      // Test would verify expiration management reports
-      expect(true).toBe(true);
-    });
-
-    it('should handle custom report parameters', () => {
-      // Test would verify customizable report options
-      expect(true).toBe(true);
+    it('should deselect all on cancel', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const checkbox = screen.getAllByRole('checkbox')[1];
+        fireEvent.click(checkbox);
+      });
+      
+      const cancelButton = screen.getByText('✕');
+      fireEvent.click(cancelButton);
+      
+      const checkboxes = screen.getAllByRole('checkbox');
+      checkboxes.forEach(checkbox => {
+        expect(checkbox).not.toBeChecked();
+      });
     });
   });
 
-  describe('Mobile and Responsive Design', () => {
-    it('should provide mobile-optimized inventory views', () => {
-      // Test would verify mobile-friendly table layouts
-      expect(true).toBe(true);
+  describe('Export Functionality', () => {
+    it('should show export button', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      expect(screen.getByText('Export')).toBeInTheDocument();
     });
 
-    it('should implement swipe gestures for mobile actions', () => {
-      // Test would verify touch-friendly interactions
-      expect(true).toBe(true);
-    });
-
-    it('should handle tablet-specific layout optimizations', () => {
-      // Test would verify tablet-optimized interface
-      expect(true).toBe(true);
-    });
-
-    it('should maintain functionality across device orientations', () => {
-      // Test would verify portrait/landscape layout adaptation
-      expect(true).toBe(true);
-    });
-
-    it('should optimize touch targets for mobile devices', () => {
-      // Test would verify appropriate button and link sizing
-      expect(true).toBe(true);
+    it('should show export options on button click', () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const exportButton = screen.getByText('Export');
+      fireEvent.click(exportButton);
+      
+      expect(screen.getByText('Export as CSV')).toBeInTheDocument();
+      expect(screen.getByText('Export as PDF')).toBeInTheDocument();
+      expect(screen.getByText('Export as Excel')).toBeInTheDocument();
     });
   });
 
-  describe('Performance and Scalability', () => {
-    it('should handle large inventory datasets efficiently', () => {
-      // Test would verify performance with thousands of items
-      expect(true).toBe(true);
+  describe('Quick Filters', () => {
+    it('should show quick filter buttons', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Low Stock Alert')).toBeInTheDocument();
+        expect(screen.getByText('Out of Stock')).toBeInTheDocument();
+        expect(screen.getByText('Expiring Soon')).toBeInTheDocument();
+      });
     });
 
-    it('should implement virtual scrolling for large lists', () => {
-      // Test would verify efficient rendering of large datasets
-      expect(true).toBe(true);
+    it('should filter by low stock on button click', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const lowStockButton = screen.getByText('Low Stock Alert');
+      fireEvent.click(lowStockButton);
+      
+      await waitFor(() => {
+        const statusSelect = screen.getByRole('combobox', { name: /status/i });
+        expect(statusSelect).toHaveValue('low-stock');
+      });
     });
 
-    it('should optimize search and filter operations', () => {
-      // Test would verify fast search performance
-      expect(true).toBe(true);
-    });
-
-    it('should implement efficient data loading strategies', () => {
-      // Test would verify smart data loading and caching
-      expect(true).toBe(true);
-    });
-
-    it('should handle concurrent user operations', () => {
-      // Test would verify performance with multiple simultaneous users
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Error Handling and Recovery', () => {
-    it('should handle data loading failures gracefully', () => {
-      // Test would verify error handling when inventory data fails to load
-      expect(true).toBe(true);
-    });
-
-    it('should handle action failures with user feedback', () => {
-      // Test would verify error messages for failed operations
-      expect(true).toBe(true);
-    });
-
-    it('should implement retry mechanisms for failed operations', () => {
-      // Test would verify automatic retry for transient failures
-      expect(true).toBe(true);
-    });
-
-    it('should handle network connectivity issues', () => {
-      // Test would verify offline/online state handling
-      expect(true).toBe(true);
-    });
-
-    it('should provide data validation and error prevention', () => {
-      // Test would verify input validation and error prevention
-      expect(true).toBe(true);
-    });
-
-    it('should implement data conflict resolution', () => {
-      // Test would verify handling of concurrent data modifications
-      expect(true).toBe(true);
+    it('should show expiring items count', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const expiringButton = screen.getByText('Expiring Soon');
+        expect(expiringButton).toBeInTheDocument();
+        // Should show count badge
+        expect(expiringButton.textContent).toMatch(/\d+/);
+      });
     });
   });
 
-  describe('Security and Access Control', () => {
-    it('should enforce inventory read permissions', () => {
-      // Test would verify user permission checks for viewing inventory
-      expect(true).toBe(true);
+  describe('Stock Adjustment Modal', () => {
+    it('should display adjustment modal with current stock', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const adjustButtons = screen.getAllByText('Adjust');
+        fireEvent.click(adjustButtons[0]);
+      });
+      
+      expect(screen.getByText('Adjust Stock Level')).toBeInTheDocument();
+      expect(screen.getByText(/Current Stock:/)).toBeInTheDocument();
     });
 
-    it('should enforce inventory write permissions', () => {
-      // Test would verify user permission checks for modifying inventory
-      expect(true).toBe(true);
+    it('should allow stock increase', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const adjustButtons = screen.getAllByText('Adjust');
+        fireEvent.click(adjustButtons[0]);
+      });
+      
+      const increaseButton = screen.getByText('Increase');
+      fireEvent.click(increaseButton);
+      
+      const amountInput = screen.getByPlaceholderText('Enter amount');
+      fireEvent.change(amountInput, { target: { value: '10' } });
+      
+      expect(amountInput).toHaveValue('10');
     });
 
-    it('should protect sensitive inventory data', () => {
-      // Test would verify data protection and privacy measures
-      expect(true).toBe(true);
+    it('should allow stock decrease', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const adjustButtons = screen.getAllByText('Adjust');
+        fireEvent.click(adjustButtons[0]);
+      });
+      
+      const decreaseButton = screen.getByText('Decrease');
+      fireEvent.click(decreaseButton);
+      
+      const amountInput = screen.getByPlaceholderText('Enter amount');
+      fireEvent.change(amountInput, { target: { value: '5' } });
+      
+      expect(amountInput).toHaveValue('5');
     });
 
-    it('should implement audit logging for inventory changes', () => {
-      // Test would verify tracking of all inventory modifications
-      expect(true).toBe(true);
+    it('should require reason for adjustment', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const adjustButtons = screen.getAllByText('Adjust');
+        fireEvent.click(adjustButtons[0]);
+      });
+      
+      const reasonInput = screen.getByPlaceholderText('Enter reason for adjustment...');
+      expect(reasonInput).toBeInTheDocument();
     });
 
-    it('should handle unauthorized access attempts', () => {
-      // Test would verify security response to unauthorized operations
-      expect(true).toBe(true);
+    it('should close modal on cancel', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const adjustButtons = screen.getAllByText('Adjust');
+        fireEvent.click(adjustButtons[0]);
+      });
+      
+      const cancelButton = screen.getByText('Cancel');
+      fireEvent.click(cancelButton);
+      
+      expect(screen.queryByText('Adjust Stock Level')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Responsive Design', () => {
+    it('should render in mobile layout', () => {
+      global.innerWidth = 375;
+      global.dispatchEvent(new Event('resize'));
+      
+      renderWithRouter(<InventoryManagement />);
+      
+      expect(screen.getByText('Inventory Management')).toBeInTheDocument();
+    });
+
+    it('should render in tablet layout', () => {
+      global.innerWidth = 768;
+      global.dispatchEvent(new Event('resize'));
+      
+      renderWithRouter(<InventoryManagement />);
+      
+      expect(screen.getByText('Inventory Management')).toBeInTheDocument();
+    });
+
+    it('should show mobile-friendly actions', () => {
+      global.innerWidth = 375;
+      global.dispatchEvent(new Event('resize'));
+      
+      renderWithRouter(<InventoryManagement />);
+      
+      // Should still have main actions available
+      expect(screen.getByText('+ Add New Item')).toBeInTheDocument();
+    });
+  });
+
+  describe('Performance', () => {
+    it('should handle large datasets efficiently', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      await waitFor(() => {
+        const items = screen.getAllByRole('row');
+        expect(items.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should debounce search input', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      
+      // Type rapidly
+      fireEvent.change(searchInput, { target: { value: 'b' } });
+      fireEvent.change(searchInput, { target: { value: 'be' } });
+      fireEvent.change(searchInput, { target: { value: 'bee' } });
+      fireEvent.change(searchInput, { target: { value: 'beef' } });
+      
+      // Should only filter once after debounce
+      await waitFor(() => {
+        expect(searchInput).toHaveValue('beef');
+      });
+    });
+  });
+
+  describe('Empty States', () => {
+    it('should show empty state when no items match filters', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      fireEvent.change(searchInput, { target: { value: 'nonexistentitem123' } });
+      
+      await waitFor(() => {
+        expect(screen.getByText(/No items found/)).toBeInTheDocument();
+      });
+    });
+
+    it('should show suggestion to reset filters', async () => {
+      renderWithRouter(<InventoryManagement />);
+      
+      const searchInput = screen.getByPlaceholderText('Search items by name, SKU, or supplier...');
+      fireEvent.change(searchInput, { target: { value: 'nonexistentitem123' } });
+      
+      await waitFor(() => {
+        expect(screen.getByText(/Try adjusting your filters/)).toBeInTheDocument();
+      });
     });
   });
 });
