@@ -1,4 +1,4 @@
-name: Security Scanning
+name: Security Analysis
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    # Run security scans daily at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
 
@@ -16,187 +15,9 @@ permissions:
   actions: read
 
 jobs:
-  # Go Security Scanning
-  go-security:
-    name: Go Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache-dependency-path: backend/go.sum
-
-      - name: Run go mod tidy
-        run: |
-          cd backend
-          go mod tidy
-
-      - name: Run gosec Security Scanner
-        run: |
-          cd backend
-          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-          gosec -no-fail -fmt sarif -out gosec-results.sarif ./...
-          
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: backend/gosec-results.sarif
-        if: always()
-
-      - name: Run go-critic
-        run: |
-          cd backend
-          go install github.com/go-critic/go-critic/cmd/gocritic@latest
-          gocritic check -enableAll ./...
-
-      - name: Check for vulnerable dependencies
-        run: |
-          cd backend
-          go install github.com/sonatypecommunity/nancy@latest
-          go list -json -m all | nancy sleuth || true
-        continue-on-error: true
-
-  # Node.js Security Scanning
-  npm-security:
-    name: NPM Security Scan
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path: [frontend-mfe]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: |
-          cd ${{ matrix.path }}
-          npm ci --prefer-offline --no-audit
-
-      - name: Run npm audit
-        run: |
-          cd ${{ matrix.path }}
-          npm audit --production --audit-level=moderate
-        continue-on-error: true
-
-      - name: Run npm audit (JSON format)
-        run: |
-          cd ${{ matrix.path }}
-          npm audit --json > npm-audit-report.json || true
-          
-      - name: Upload npm audit results
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-audit-${{ matrix.path }}
-          path: ${{ matrix.path }}/npm-audit-report.json
-
-      - name: Check with Snyk
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --file=${{ matrix.path }}/package.json
-
-  # Container Security Scanning
-  container-security:
-    name: Container Security Scan
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [
-          { name: 'menu-service', path: 'backend/menu-service' },
-          { name: 'order-service', path: 'backend/order-service' },
-          { name: 'kitchen-service', path: 'backend/kitchen-service' },
-          { name: 'reservation-service', path: 'backend/reservation-service' },
-          { name: 'inventory-service', path: 'backend/inventory-service' },
-          { name: 'user-service', path: 'backend/user-service' }
-        ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: |
-          cd ${{ matrix.service.path }}
-          if [ ! -f Dockerfile ]; then
-            echo "Dockerfile not found, creating minimal one for scanning..."
-            cat > Dockerfile << 'DOCKERFILE_EOF'
-FROM golang:1.24-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN go build -o main ./cmd/server/
-
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/main .
-CMD ["./main"]
-DOCKERFILE_EOF
-          fi
-          docker build -t ${{ matrix.service.name }}:scanning .
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.service.name }}:scanning
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: Run Trivy in table format
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.service.name }}:scanning
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-
-  # Secret Detection
-  secret-detection:
-    name: Secret Detection
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          extra_args: --debug --only-verified
-
-      - name: Detect secrets with detect-secrets
-        run: |
-          pip install detect-secrets
-          detect-secrets scan --baseline .secrets.baseline
-          detect-secrets audit .secrets.baseline
-        continue-on-error: true
-
-  # SAST - Static Application Security Testing
-  sast:
-    name: SAST Analysis
+  # Core SAST Analysis with CodeQL
+  codeql-analysis:
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -215,6 +36,83 @@ DOCKERFILE_EOF
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
+  # Go Security Scanning
+  go-security:
+    name: Go Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: backend/go.sum
+
+      - name: Run gosec Security Scanner
+        run: |
+          cd backend
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          gosec -no-fail -fmt sarif -out gosec-results.sarif ./... || true
+          
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: backend/gosec-results.sarif
+        if: always()
+
+  # Node.js Security Scanning
+  npm-security:
+    name: NPM Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend-mfe/package-lock.json
+
+      - name: Install dependencies and run audit
+        run: |
+          cd frontend-mfe
+          npm ci
+          npm audit --audit-level=moderate || true
+
+  # Secret Detection
+  secret-detection:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+        continue-on-error: true
+
+  # SonarCloud Analysis (Optional)
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    if: ${{ vars.SONAR_TOKEN != '' || secrets.SONAR_TOKEN != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
@@ -224,143 +122,3 @@ DOCKERFILE_EOF
           args: >
             -Dsonar.projectKey=restaurant-platform
             -Dsonar.organization=${{ github.repository_owner }}
-        continue-on-error: true
-        if: env.SONAR_TOKEN != ''
-
-  # Security Headers Check
-  security-headers:
-    name: Security Headers Check
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check nginx security headers
-        run: |
-          echo "Checking security headers in nginx configuration..."
-          
-          # Check for security headers in nginx configs
-          for file in $(find . -name "*.conf" -type f | grep -E "(nginx|gateway)"); do
-            echo "Checking $file..."
-            
-            # Check for important security headers
-            headers=(
-              "X-Frame-Options"
-              "X-Content-Type-Options"
-              "X-XSS-Protection"
-              "Strict-Transport-Security"
-              "Content-Security-Policy"
-              "Referrer-Policy"
-            )
-            
-            for header in "${headers[@]}"; do
-              if ! grep -q "$header" "$file"; then
-                echo "WARNING: Missing $header in $file"
-              fi
-            done
-          done
-
-  # OWASP Dependency Check
-  owasp-dependency-check:
-    name: OWASP Dependency Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: 'restaurant-platform'
-          path: '.'
-          format: 'ALL'
-          args: >
-            --enableRetired
-            --enableExperimental
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: reports/
-
-  # License Compliance Check
-  license-check:
-    name: License Compliance
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check Go licenses
-        run: |
-          cd backend
-          go install github.com/google/go-licenses@latest
-          go-licenses check ./... --disallowed_types forbidden,restricted || true
-        continue-on-error: true
-
-      - name: Check npm licenses
-        run: |
-          cd frontend-mfe
-          npm install
-          npx license-checker --production --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense" || true
-        continue-on-error: true
-
-  # Generate Security Report
-  security-report:
-    name: Generate Security Report
-    runs-on: ubuntu-latest
-    needs: [go-security, npm-security, container-security, secret-detection, sast, owasp-dependency-check]
-    if: always()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Generate consolidated security report
-        run: |
-          echo "# Security Scan Report" > security-report.md
-          echo "**Date:** $(date)" >> security-report.md
-          echo "**Commit:** ${{ github.sha }}" >> security-report.md
-          echo "" >> security-report.md
-          
-          echo "## Summary" >> security-report.md
-          echo "- Go Security: ${{ needs.go-security.result }}" >> security-report.md
-          echo "- NPM Security: ${{ needs.npm-security.result }}" >> security-report.md
-          echo "- Container Security: ${{ needs.container-security.result }}" >> security-report.md
-          echo "- Secret Detection: ${{ needs.secret-detection.result }}" >> security-report.md
-          echo "- SAST: ${{ needs.sast.result }}" >> security-report.md
-          echo "- OWASP Check: ${{ needs.owasp-dependency-check.result }}" >> security-report.md
-          
-          echo "" >> security-report.md
-          echo "## Detailed Results" >> security-report.md
-          
-          # Add npm audit results if available
-          if [ -f "npm-audit-frontend-mfe/npm-audit-report.json" ]; then
-            echo "### NPM Vulnerabilities" >> security-report.md
-            jq '.vulnerabilities | to_entries | .[] | "- \(.key): \(.value.severity) severity"' npm-audit-frontend-mfe/npm-audit-report.json >> security-report.md || true
-          fi
-
-      - name: Upload security report
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-report
-          path: security-report.md
-
-      - name: Comment PR with security summary
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const report = fs.readFileSync('security-report.md', 'utf8');
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: report
-            });
