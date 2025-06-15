@@ -1,4 +1,4 @@
-export { default as useInventoryStore } from './inventoryStore';
-export { default as useSupplierStore } from './supplierStore';
-export { default as useAlertStore } from './alertStore';
+export { useInventoryStore } from './inventoryStore';
+export { useSupplierStore } from './supplierStore';
+export { useAlertStore } from './alertStore';
 export * from './types';

@@ -3,6 +3,8 @@ package interfaces
 import (
 	"net/http"
 	"strconv"
+	"time"
+	
 	"github.com/restaurant-platform/inventory-service/internal/application"
 	inventory "github.com/restaurant-platform/inventory-service/internal/domain"
 
@@ -256,4 +258,190 @@ func (h *InventoryHandler) GetOutOfStockItems(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+// Movement handlers
+
+type RecordMovementRequest struct {
+	Type        inventory.MovementType `json:"type" binding:"required"`
+	Quantity    float64                `json:"quantity" binding:"required,min=0"`
+	Notes       string                 `json:"notes"`
+	Reference   string                 `json:"reference"`
+	PerformedBy string                 `json:"performed_by"`
+}
+
+func (h *InventoryHandler) RecordMovement(c *gin.Context) {
+	id := inventory.InventoryItemID(c.Param("id"))
+	
+	var req RecordMovementRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.inventoryService.RecordMovement(
+		c.Request.Context(),
+		id,
+		req.Type,
+		req.Quantity,
+		req.Notes,
+		req.Reference,
+		req.PerformedBy,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Movement recorded successfully"})
+}
+
+func (h *InventoryHandler) GetMovements(c *gin.Context) {
+	id := inventory.InventoryItemID(c.Param("id"))
+	limitStr := c.DefaultQuery("limit", "20")
+	
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
+		return
+	}
+
+	movements, err := h.inventoryService.GetMovementsByItemID(c.Request.Context(), id, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"movements": movements})
+}
+
+// Supplier handlers
+
+type CreateSupplierRequest struct {
+	Name        string `json:"name" binding:"required"`
+	ContactName string `json:"contact_name"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	Address     string `json:"address"`
+	Website     string `json:"website"`
+	Notes       string `json:"notes"`
+}
+
+func (h *InventoryHandler) CreateSupplier(c *gin.Context) {
+	var req CreateSupplierRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	supplier, err := h.inventoryService.CreateSupplier(
+		c.Request.Context(),
+		req.Name,
+		req.ContactName,
+		req.Email,
+		req.Phone,
+		req.Address,
+		req.Website,
+		req.Notes,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, supplier)
+}
+
+func (h *InventoryHandler) GetSupplier(c *gin.Context) {
+	id := inventory.SupplierID(c.Param("id"))
+	
+	supplier, err := h.inventoryService.GetSupplierByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, supplier)
+}
+
+type UpdateSupplierRequest struct {
+	Name        string `json:"name" binding:"required"`
+	ContactName string `json:"contact_name"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	Address     string `json:"address"`
+	Website     string `json:"website"`
+	Notes       string `json:"notes"`
+	IsActive    bool   `json:"is_active"`
+}
+
+func (h *InventoryHandler) UpdateSupplier(c *gin.Context) {
+	id := inventory.SupplierID(c.Param("id"))
+	
+	var req UpdateSupplierRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	supplier := &inventory.Supplier{
+		ID:          id,
+		Name:        req.Name,
+		ContactName: req.ContactName,
+		Email:       req.Email,
+		Phone:       req.Phone,
+		Address:     req.Address,
+		Website:     req.Website,
+		Notes:       req.Notes,
+		IsActive:    req.IsActive,
+		UpdatedAt:   time.Now(),
+	}
+
+	err := h.inventoryService.UpdateSupplier(c.Request.Context(), supplier)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Supplier updated successfully"})
+}
+
+func (h *InventoryHandler) DeleteSupplier(c *gin.Context) {
+	id := inventory.SupplierID(c.Param("id"))
+	
+	err := h.inventoryService.DeleteSupplier(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}
+
+func (h *InventoryHandler) ListSuppliers(c *gin.Context) {
+	offsetStr := c.DefaultQuery("offset", "0")
+	limitStr := c.DefaultQuery("limit", "20")
+	
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset parameter"})
+		return
+	}
+	
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
+		return
+	}
+
+	suppliers, total, err := h.inventoryService.ListSuppliers(c.Request.Context(), offset, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"suppliers": suppliers,
+		"total":     total,
+	})
 }

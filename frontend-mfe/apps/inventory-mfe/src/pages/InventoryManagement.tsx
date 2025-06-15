@@ -1,31 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@restaurant/shared-ui';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  sku: string;
-  currentStock: number;
-  minimumStock: number;
-  maximumStock: number;
-  unit: string;
-  costPerUnit: number;
-  supplier: string;
-  location: string;
-  status: 'in-stock' | 'low-stock' | 'out-of-stock' | 'discontinued';
-  lastUpdated: string;
-  expiryDate?: string;
-  batchNumber?: string;
-  description?: string;
-  tags: string[];
-}
+import { useInventoryStore, InventoryItem } from '../store';
 
 const InventoryManagement: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  
+  // Use inventory store
+  const { items, loading, error, fetchItems } = useInventoryStore();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -34,73 +18,24 @@ const InventoryManagement: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
 
-  // Mock data
+  // Load inventory items from API
   useEffect(() => {
-    const generateMockItems = (): InventoryItem[] => {
-      const categories = ['Meat', 'Seafood', 'Vegetables', 'Dairy', 'Grains', 'Condiments', 'Beverages', 'Spices'];
-      const suppliers = ['Premium Foods Co.', 'Fresh Market Supply', 'Ocean Harvest', 'Farm Direct', 'Specialty Imports'];
-      const locations = ['Main Storage', 'Walk-in Cooler', 'Freezer A', 'Freezer B', 'Dry Storage', 'Wine Cellar'];
-      const units = ['lbs', 'kg', 'pcs', 'bottles', 'cans', 'boxes', 'gallons', 'liters'];
-      
-      const mockItems: InventoryItem[] = [];
-      
-      const itemNames = [
-        'Premium Beef Tenderloin', 'Fresh Salmon Fillet', 'Organic Baby Spinach', 'Aged Parmesan Cheese',
-        'Arborio Rice', 'Extra Virgin Olive Oil', 'Craft Beer Selection', 'Madagascar Vanilla',
-        'Free-Range Chicken Breast', 'Jumbo Shrimp', 'Heirloom Tomatoes', 'Artisan Mozzarella',
-        'Quinoa Grain', 'Truffle Oil', 'Premium Wine Collection', 'Himalayan Pink Salt',
-        'Grass-Fed Lamb Chops', 'Atlantic Cod', 'Organic Kale', 'French Butter',
-        'Wild Rice', 'Balsamic Vinegar', 'Sparkling Water', 'Black Pepper Whole',
-        'Duck Breast', 'Lobster Tail', 'Rainbow Carrots', 'Goat Cheese',
-        'Farro', 'Coconut Oil', 'Coffee Beans', 'Paprika Smoked'
-      ];
-      
-      itemNames.forEach((name, index) => {
-        const currentStock = Math.floor(Math.random() * 100);
-        const minimumStock = Math.floor(Math.random() * 20) + 5;
-        const maximumStock = minimumStock + Math.floor(Math.random() * 50) + 20;
-        const costPerUnit = Math.random() * 50 + 5;
-        
-        let status: InventoryItem['status'] = 'in-stock';
-        if (currentStock === 0) status = 'out-of-stock';
-        else if (currentStock <= minimumStock) status = 'low-stock';
-        else if (Math.random() > 0.95) status = 'discontinued';
-        
-        const category = categories[index % categories.length];
-        const hasExpiry = ['Meat', 'Seafood', 'Dairy', 'Vegetables'].includes(category);
-        
-        mockItems.push({
-          id: `item_${index + 1}`,
-          name,
-          category,
-          sku: `SKU${String(index + 1).padStart(4, '0')}`,
-          currentStock,
-          minimumStock,
-          maximumStock,
-          unit: units[Math.floor(Math.random() * units.length)],
-          costPerUnit,
-          supplier: suppliers[Math.floor(Math.random() * suppliers.length)],
-          location: locations[Math.floor(Math.random() * locations.length)],
-          status,
-          lastUpdated: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-          expiryDate: hasExpiry ? new Date(Date.now() + Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-          batchNumber: hasExpiry ? `BT${Math.floor(Math.random() * 9000) + 1000}` : undefined,
-          description: `High-quality ${name.toLowerCase()} for restaurant use`,
-          tags: Math.random() > 0.7 ? ['organic'] : Math.random() > 0.8 ? ['premium'] : []
-        });
-      });
-      
-      return mockItems;
+    const loadItems = async () => {
+      try {
+        await fetchItems();
+      } catch (err) {
+        console.error('Failed to load inventory items:', err);
+      }
     };
 
-    setItems(generateMockItems());
+    loadItems();
     
     // Handle search params for filtering
     const category = searchParams.get('category');
     const status = searchParams.get('status');
     if (category) setSelectedCategory(category);
     if (status) setSelectedStatus(status);
-  }, [searchParams]);
+  }, [searchParams, fetchItems]);
 
   const categories = ['all', ...Array.from(new Set(items.map(item => item.category)))];
   const statuses = ['all', 'in-stock', 'low-stock', 'out-of-stock', 'discontinued'];
@@ -193,6 +128,40 @@ const InventoryManagement: React.FC = () => {
   useEffect(() => {
     setShowBulkActions(selectedItems.length > 0);
   }, [selectedItems]);
+
+  // Handle loading state
+  if (loading && items.length === 0) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900">Inventory Management</h1>
+            <p className="text-neutral-600">Loading inventory items...</p>
+          </div>
+        </div>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-neutral-500">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900">Inventory Management</h1>
+            <p className="text-red-600">Error: {error}</p>
+          </div>
+          <Button onClick={() => fetchItems()} className="bg-blue-600 hover:bg-blue-700">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -443,9 +412,9 @@ const InventoryManagement: React.FC = () => {
                         <div className="text-sm text-neutral-500">
                           SKU: {item.sku} • {item.supplier}
                         </div>
-                        {item.tags.length > 0 && (
+                        {(item as any).tags && (item as any).tags.length > 0 && (
                           <div className="flex space-x-1 mt-1">
-                            {item.tags.map(tag => (
+                            {(item as any).tags.map((tag: string) => (
                               <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
                                 {tag}
                               </span>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@restaurant/shared-ui';
 import { useRestaurantEvents } from '@restaurant/shared-state';
+import InventoryService, { DashboardMetrics, RecentActivity } from '../services/inventoryService';
+import { useAlertStore } from '../store';
 
 interface StockAlert {
   id: string;
@@ -13,26 +15,6 @@ interface StockAlert {
   lastUpdated: string;
 }
 
-interface RecentActivity {
-  id: string;
-  type: 'stock_in' | 'stock_out' | 'adjustment' | 'purchase_order';
-  description: string;
-  timestamp: string;
-  user: string;
-  amount?: number;
-}
-
-interface DashboardMetrics {
-  totalItems: number;
-  lowStockItems: number;
-  outOfStockItems: number;
-  totalValue: number;
-  pendingOrders: number;
-  monthlyTurnover: number;
-  averageStockDays: number;
-  supplierCount: number;
-}
-
 const InventoryDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { 
@@ -41,6 +23,9 @@ const InventoryDashboard: React.FC = () => {
     onOrderCreated,
     onKitchenOrderUpdate 
   } = useRestaurantEvents();
+  
+  // Use the alert store for managing alerts
+  const { alerts, loading: alertsLoading, fetchAlerts } = useAlertStore();
   
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalItems: 0,
@@ -52,123 +37,41 @@ const InventoryDashboard: React.FC = () => {
     averageStockDays: 0,
     supplierCount: 0
   });
-  const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'today' | 'week' | 'month'>('week');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load dashboard data from API
   useEffect(() => {
-    // Mock data generation
-    const generateMockData = () => {
-      // Mock metrics
-      const mockMetrics: DashboardMetrics = {
-        totalItems: 847,
-        lowStockItems: 23,
-        outOfStockItems: 5,
-        totalValue: 124750,
-        pendingOrders: 12,
-        monthlyTurnover: 2.4,
-        averageStockDays: 15,
-        supplierCount: 34
-      };
-      setMetrics(mockMetrics);
-
-      // Mock stock alerts
-      const mockAlerts: StockAlert[] = [
-        {
-          id: 'alert_1',
-          itemName: 'Premium Beef Tenderloin',
-          currentStock: 2,
-          minimumStock: 10,
-          category: 'Meat',
-          priority: 'urgent',
-          lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'alert_2',
-          itemName: 'Fresh Salmon Fillet',
-          currentStock: 5,
-          minimumStock: 15,
-          category: 'Seafood',
-          priority: 'high',
-          lastUpdated: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'alert_3',
-          itemName: 'Organic Baby Spinach',
-          currentStock: 8,
-          minimumStock: 20,
-          category: 'Vegetables',
-          priority: 'medium',
-          lastUpdated: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'alert_4',
-          itemName: 'Truffle Oil',
-          currentStock: 0,
-          minimumStock: 3,
-          category: 'Condiments',
-          priority: 'urgent',
-          lastUpdated: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'alert_5',
-          itemName: 'Parmesan Cheese (Aged)',
-          currentStock: 3,
-          minimumStock: 12,
-          category: 'Dairy',
-          priority: 'high',
-          lastUpdated: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
-        }
-      ];
-      setStockAlerts(mockAlerts);
-
-      // Mock recent activity
-      const mockActivity: RecentActivity[] = [
-        {
-          id: 'activity_1',
-          type: 'stock_in',
-          description: 'Received delivery from Premium Foods Co.',
-          timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          user: 'Sarah Johnson',
-          amount: 125
-        },
-        {
-          id: 'activity_2',
-          type: 'stock_out',
-          description: 'Kitchen used 15 lbs of chicken breast',
-          timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-          user: 'Mike Chen',
-          amount: 15
-        },
-        {
-          id: 'activity_3',
-          type: 'adjustment',
-          description: 'Stock adjustment for expired lettuce',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          user: 'Emily Davis',
-          amount: -8
-        },
-        {
-          id: 'activity_4',
-          type: 'purchase_order',
-          description: 'Purchase order #PO-2024-156 created',
-          timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          user: 'David Wilson'
-        },
-        {
-          id: 'activity_5',
-          type: 'stock_in',
-          description: 'Emergency delivery from Local Produce',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          user: 'Lisa Martinez',
-          amount: 45
-        }
-      ];
-      setRecentActivity(mockActivity);
+    const loadDashboardData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Load metrics and alerts in parallel
+        const [metricsData, activityData] = await Promise.all([
+          InventoryService.getDashboardMetrics(),
+          InventoryService.getRecentActivity()
+        ]);
+        
+        setMetrics(metricsData);
+        setRecentActivity(activityData);
+        
+        // Load alerts using the store
+        await fetchAlerts();
+        
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
+        setError(errorMessage);
+        console.error('Dashboard data loading failed:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    generateMockData();
-  }, [selectedTimeRange]);
+    loadDashboardData();
+  }, [selectedTimeRange, fetchAlerts]);
 
   // Listen for order events to update inventory
   useEffect(() => {
@@ -193,19 +96,19 @@ const InventoryDashboard: React.FC = () => {
   // Emit low stock alerts when detected
   useEffect(() => {
     // Check for low stock items and emit events
-    stockAlerts.forEach(alert => {
-      if (alert.priority === 'urgent' || alert.priority === 'high') {
+    alerts.forEach(alert => {
+      if ((alert.priority === 'urgent' || alert.priority === 'high') && alert.status === 'active') {
         emitInventoryLowStock({
           itemId: alert.id,
           itemName: alert.itemName,
-          currentStock: alert.currentStock,
-          minimumStock: alert.minimumStock,
-          category: alert.category,
+          currentStock: 0, // Will be populated when we have full item details
+          minimumStock: 0,  // Will be populated when we have full item details
+          category: 'Unknown', // Will be populated when we have full item details
           priority: alert.priority
         });
       }
     });
-  }, [stockAlerts, emitInventoryLowStock]);
+  }, [alerts, emitInventoryLowStock]);
 
   const getAlertPriorityColor = (priority: string): string => {
     switch (priority) {
@@ -287,14 +190,34 @@ const InventoryDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="text-red-600 text-lg mr-2">⚠️</div>
+            <div>
+              <h3 className="font-semibold text-red-800">Error Loading Data</h3>
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+            <Button
+              onClick={() => window.location.reload()}
+              size="sm"
+              className="ml-auto bg-red-600 hover:bg-red-700"
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Critical Alerts Banner */}
-      {stockAlerts.filter(alert => alert.priority === 'urgent').length > 0 && (
+      {!alertsLoading && alerts.filter(alert => alert.priority === 'urgent' && alert.status === 'active').length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="text-red-600 text-lg mr-2">🚨</div>
             <div>
               <h3 className="font-semibold text-red-800">
-                Critical Stock Alert ({stockAlerts.filter(alert => alert.priority === 'urgent').length} items)
+                Critical Stock Alert ({alerts.filter(alert => alert.priority === 'urgent' && alert.status === 'active').length} items)
               </h3>
               <p className="text-red-700 text-sm">
                 You have urgent stock shortages that require immediate attention.
@@ -373,42 +296,52 @@ const InventoryDashboard: React.FC = () => {
             </div>
             
             <div className="divide-y divide-neutral-200">
-              {stockAlerts.slice(0, 5).map(alert => (
-                <div key={alert.id} className="p-4 hover:bg-neutral-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
+              {alertsLoading ? (
+                <div className="p-8 text-center">
+                  <div className="text-neutral-500">Loading alerts...</div>
+                </div>
+              ) : alerts.length === 0 ? (
+                <div className="p-8 text-center">
+                  <div className="text-neutral-500">No alerts at this time</div>
+                </div>
+              ) : (
+                alerts.filter(alert => alert.status === 'active').slice(0, 5).map(alert => (
+                  <div key={alert.id} className="p-4 hover:bg-neutral-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-neutral-900">{alert.itemName}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAlertPriorityColor(alert.priority)}`}>
+                            {alert.priority}
+                          </span>
+                        </div>
+                        <div className="text-sm text-neutral-600">
+                          {alert.message}
+                        </div>
+                        <div className="text-xs text-neutral-500">
+                          {alert.type} • Updated {getTimeAgo(alert.timestamp)}
+                        </div>
+                      </div>
+                      
                       <div className="flex items-center space-x-2">
-                        <span className="font-medium text-neutral-900">{alert.itemName}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAlertPriorityColor(alert.priority)}`}>
-                          {alert.priority}
-                        </span>
+                        <Button
+                          onClick={() => navigate(`/stock/adjust?item=${alert.itemName}`)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Adjust Stock
+                        </Button>
+                        <Button
+                          onClick={() => navigate(`/purchase-orders/new?item=${alert.itemName}`)}
+                          size="sm"
+                        >
+                          Order Now
+                        </Button>
                       </div>
-                      <div className="text-sm text-neutral-600">
-                        Current: {alert.currentStock} units • Minimum: {alert.minimumStock} units
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        {alert.category} • Updated {getTimeAgo(alert.lastUpdated)}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        onClick={() => navigate(`/stock/adjust?item=${alert.itemName}`)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        Adjust Stock
-                      </Button>
-                      <Button
-                        onClick={() => navigate(`/purchase-orders/new?item=${alert.itemName}`)}
-                        size="sm"
-                      >
-                        Order Now
-                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -421,28 +354,38 @@ const InventoryDashboard: React.FC = () => {
             </div>
             
             <div className="divide-y divide-neutral-200">
-              {recentActivity.slice(0, 8).map(activity => (
-                <div key={activity.id} className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="text-lg">{getActivityIcon(activity.type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-neutral-900">
-                        {activity.description}
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        by {activity.user} • {getTimeAgo(activity.timestamp)}
-                      </div>
-                      {activity.amount && (
-                        <div className={`text-xs font-medium ${
-                          activity.amount > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {activity.amount > 0 ? '+' : ''}{activity.amount} units
+              {loading ? (
+                <div className="p-8 text-center">
+                  <div className="text-neutral-500">Loading activity...</div>
+                </div>
+              ) : recentActivity.length === 0 ? (
+                <div className="p-8 text-center">
+                  <div className="text-neutral-500">No recent activity</div>
+                </div>
+              ) : (
+                recentActivity.slice(0, 8).map(activity => (
+                  <div key={activity.id} className="p-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="text-lg">{getActivityIcon(activity.type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-neutral-900">
+                          {activity.description}
                         </div>
-                      )}
+                        <div className="text-xs text-neutral-500">
+                          by {activity.user} • {getTimeAgo(activity.timestamp)}
+                        </div>
+                        {activity.amount && (
+                          <div className={`text-xs font-medium ${
+                            activity.amount > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {activity.amount > 0 ? '+' : ''}{activity.amount} units
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

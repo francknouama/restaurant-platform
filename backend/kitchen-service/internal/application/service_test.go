@@ -348,6 +348,7 @@ func (suite *KitchenOrderServiceTestSuite) TestUpdateItemStatus_Success() {
 
 	suite.mockRepo.On("FindByID", suite.ctx, kitchenOrderID).Return(existingOrder, nil)
 	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+	suite.mockPublisher.On("Publish", suite.ctx, mock.AnythingOfType("*events.DomainEvent")).Return(nil)
 
 	// When
 	err := suite.service.UpdateItemStatus(suite.ctx, kitchenOrderID, itemID, newStatus)
@@ -358,6 +359,7 @@ func (suite *KitchenOrderServiceTestSuite) TestUpdateItemStatus_Success() {
 	assert.Equal(newStatus, existingOrder.Items[0].Status)
 
 	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockPublisher.AssertExpectations(suite.T())
 }
 
 func (suite *KitchenOrderServiceTestSuite) TestUpdateItemStatus_InvalidTransition_ShouldFail() {
@@ -443,6 +445,7 @@ func (suite *KitchenOrderServiceTestSuite) TestAssignToStation_Success() {
 
 	suite.mockRepo.On("FindByID", suite.ctx, kitchenOrderID).Return(existingOrder, nil)
 	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+	suite.mockPublisher.On("Publish", suite.ctx, mock.AnythingOfType("*events.DomainEvent")).Return(nil)
 
 	// When
 	err := suite.service.AssignToStation(suite.ctx, kitchenOrderID, stationID)
@@ -453,6 +456,7 @@ func (suite *KitchenOrderServiceTestSuite) TestAssignToStation_Success() {
 	assert.Equal(stationID, existingOrder.AssignedStation)
 
 	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockPublisher.AssertExpectations(suite.T())
 }
 
 func (suite *KitchenOrderServiceTestSuite) TestAssignToStation_EmptyStationID_ShouldFail() {
@@ -486,6 +490,7 @@ func (suite *KitchenOrderServiceTestSuite) TestSetPriority_Success() {
 
 	suite.mockRepo.On("FindByID", suite.ctx, kitchenOrderID).Return(existingOrder, nil)
 	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+	suite.mockPublisher.On("Publish", suite.ctx, mock.AnythingOfType("*events.DomainEvent")).Return(nil)
 
 	// When
 	err := suite.service.SetPriority(suite.ctx, kitchenOrderID, newPriority)
@@ -496,6 +501,7 @@ func (suite *KitchenOrderServiceTestSuite) TestSetPriority_Success() {
 	assert.Equal(newPriority, existingOrder.Priority)
 
 	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockPublisher.AssertExpectations(suite.T())
 }
 
 // Test CancelKitchenOrder
@@ -508,6 +514,7 @@ func (suite *KitchenOrderServiceTestSuite) TestCancelKitchenOrder_Success() {
 
 	suite.mockRepo.On("FindByID", suite.ctx, kitchenOrderID).Return(existingOrder, nil)
 	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+	suite.mockPublisher.On("Publish", suite.ctx, mock.AnythingOfType("*events.DomainEvent")).Return(nil)
 
 	// When
 	err := suite.service.CancelKitchenOrder(suite.ctx, kitchenOrderID)
@@ -518,6 +525,7 @@ func (suite *KitchenOrderServiceTestSuite) TestCancelKitchenOrder_Success() {
 	assert.Equal(domain.KitchenOrderStatusCancelled, existingOrder.Status)
 
 	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockPublisher.AssertExpectations(suite.T())
 }
 
 func (suite *KitchenOrderServiceTestSuite) TestCancelKitchenOrder_CompletedOrder_ShouldFail() {
@@ -552,6 +560,7 @@ func (suite *KitchenOrderServiceTestSuite) TestCompleteKitchenOrder_Success() {
 
 	suite.mockRepo.On("FindByID", suite.ctx, kitchenOrderID).Return(existingOrder, nil)
 	suite.mockRepo.On("Update", suite.ctx, existingOrder).Return(nil)
+	suite.mockPublisher.On("Publish", suite.ctx, mock.AnythingOfType("*events.DomainEvent")).Return(nil)
 
 	// When
 	err := suite.service.CompleteKitchenOrder(suite.ctx, kitchenOrderID)
@@ -562,6 +571,7 @@ func (suite *KitchenOrderServiceTestSuite) TestCompleteKitchenOrder_Success() {
 	assert.Equal(domain.KitchenOrderStatusCompleted, existingOrder.Status)
 
 	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockPublisher.AssertExpectations(suite.T())
 }
 
 // Test GetActiveOrders

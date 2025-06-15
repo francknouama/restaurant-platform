@@ -138,7 +138,39 @@ func (s *KitchenOrderService) UpdateItemStatus(ctx context.Context, kitchenOrder
 
 	log.Printf("Updated item %s status from %s to %s in kitchen order: %s", itemID, previousStatus, status, kitchenOrderID)
 
-	// TODO: Publish KitchenItemStatusChangedEvent
+	// Publish KitchenItemStatusChangedEvent
+	var itemName, menuItemID string
+	for _, item := range order.Items {
+		if string(item.ID) == itemID {
+			itemName = item.Name
+			menuItemID = item.MenuItemID
+			break
+		}
+	}
+
+	eventData, err := events.ToEventData(events.KitchenItemStatusChangedData{
+		KitchenOrderID: string(order.ID),
+		ItemID:         itemID,
+		MenuItemID:     menuItemID,
+		ItemName:       itemName,
+		OldStatus:      string(previousStatus),
+		NewStatus:      string(status),
+		UpdatedBy:      "kitchen-service",
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
+
+	event := events.NewDomainEvent(events.KitchenItemStatusChangedEvent, string(order.ID), eventData).
+		WithMetadata("service", "kitchen-service").
+		WithMetadata("order_id", order.OrderID).
+		WithMetadata("item_id", itemID)
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish kitchen item status changed event: %v", err)
+	}
 
 	return nil
 }
@@ -210,7 +242,29 @@ func (s *KitchenOrderService) AssignToStation(ctx context.Context, kitchenOrderI
 
 	log.Printf("Assigned kitchen order %s to station: %s", kitchenOrderID, stationID)
 
-	// TODO: Publish KitchenOrderAssignedEvent
+	// Publish KitchenOrderAssignedEvent
+	eventData, err := events.ToEventData(events.KitchenOrderCreatedData{
+		KitchenOrderID: string(order.ID),
+		OrderID:        order.OrderID,
+		TableID:        order.TableID,
+		Status:         string(order.Status),
+		Priority:       string(order.Priority),
+		EstimatedTime:  int64(order.EstimatedTime.Seconds()),
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
+
+	event := events.NewDomainEvent(events.KitchenOrderAssignedEvent, string(order.ID), eventData).
+		WithMetadata("service", "kitchen-service").
+		WithMetadata("order_id", order.OrderID).
+		WithMetadata("station_id", stationID)
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish kitchen order assigned event: %v", err)
+	}
 
 	return nil
 }
@@ -235,7 +289,30 @@ func (s *KitchenOrderService) SetPriority(ctx context.Context, kitchenOrderID do
 
 	log.Printf("Set kitchen order %s priority from %s to %s", kitchenOrderID, previousPriority, priority)
 
-	// TODO: Publish KitchenOrderPriorityChangedEvent
+	// Publish KitchenOrderPriorityChangedEvent
+	eventData, err := events.ToEventData(events.KitchenOrderCreatedData{
+		KitchenOrderID: string(order.ID),
+		OrderID:        order.OrderID,
+		TableID:        order.TableID,
+		Status:         string(order.Status),
+		Priority:       string(order.Priority),
+		EstimatedTime:  int64(order.EstimatedTime.Seconds()),
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
+
+	event := events.NewDomainEvent(events.KitchenOrderPriorityChangedEvent, string(order.ID), eventData).
+		WithMetadata("service", "kitchen-service").
+		WithMetadata("order_id", order.OrderID).
+		WithMetadata("old_priority", string(previousPriority)).
+		WithMetadata("new_priority", string(priority))
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish kitchen order priority changed event: %v", err)
+	}
 
 	return nil
 }
@@ -260,7 +337,28 @@ func (s *KitchenOrderService) CancelKitchenOrder(ctx context.Context, kitchenOrd
 
 	log.Printf("Cancelled kitchen order: %s", kitchenOrderID)
 
-	// TODO: Publish KitchenOrderCancelledEvent
+	// Publish KitchenOrderCancelledEvent
+	eventData, err := events.ToEventData(events.KitchenOrderCreatedData{
+		KitchenOrderID: string(order.ID),
+		OrderID:        order.OrderID,
+		TableID:        order.TableID,
+		Status:         string(order.Status),
+		Priority:       string(order.Priority),
+		EstimatedTime:  int64(order.EstimatedTime.Seconds()),
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
+
+	event := events.NewDomainEvent(events.KitchenOrderCancelledEvent, string(order.ID), eventData).
+		WithMetadata("service", "kitchen-service").
+		WithMetadata("order_id", order.OrderID)
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish kitchen order cancelled event: %v", err)
+	}
 
 	return nil
 }
@@ -285,7 +383,28 @@ func (s *KitchenOrderService) CompleteKitchenOrder(ctx context.Context, kitchenO
 
 	log.Printf("Completed kitchen order: %s", kitchenOrderID)
 
-	// TODO: Publish KitchenOrderCompletedEvent
+	// Publish KitchenOrderCompletedEvent
+	eventData, err := events.ToEventData(events.KitchenOrderCreatedData{
+		KitchenOrderID: string(order.ID),
+		OrderID:        order.OrderID,
+		TableID:        order.TableID,
+		Status:         string(order.Status),
+		Priority:       string(order.Priority),
+		EstimatedTime:  int64(order.EstimatedTime.Seconds()),
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return fmt.Errorf("failed to convert event data: %w", err)
+	}
+
+	event := events.NewDomainEvent(events.KitchenOrderCompletedEvent, string(order.ID), eventData).
+		WithMetadata("service", "kitchen-service").
+		WithMetadata("order_id", order.OrderID)
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish kitchen order completed event: %v", err)
+	}
 
 	return nil
 }

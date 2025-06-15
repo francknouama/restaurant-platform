@@ -110,6 +110,11 @@ type SupplierEventData struct {
 	IsActive     bool   `json:"is_active"`
 }
 
+// SupplierDeletedData represents data for supplier deleted event
+type SupplierDeletedData struct {
+	SupplierID string `json:"supplier_id"`
+}
+
 // Kitchen Event Data Structures
 
 // KitchenOrderCreatedData represents data for kitchen order created event
@@ -168,7 +173,7 @@ type OrderStatusChangedData struct {
 type EventData interface {
 	MenuCreatedData | MenuActivatedData | ItemAvailabilityChangedData |
 	ReservationCreatedData | ReservationStatusChangedData |
-	InventoryItemCreatedData | StockMovementData | StockAlertData | SupplierEventData |
+	InventoryItemCreatedData | StockMovementData | StockAlertData | SupplierEventData | SupplierDeletedData |
 	OrderCreatedData | OrderStatusChangedData |
 	KitchenOrderCreatedData | KitchenOrderStatusChangedData | KitchenItemStatusChangedData
 }

@@ -1,177 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@restaurant/shared-ui';
+import { useInventoryStore, InventoryItem } from '../store';
+import InventoryService, { StockMovement } from '../services/inventoryService';
 
-interface StockAdjustment {
-  id: string;
-  itemId: string;
-  itemName: string;
-  category: string;
-  type: 'in' | 'out' | 'adjustment' | 'waste' | 'transfer';
-  quantity: number;
-  unit: string;
-  reason: string;
-  notes?: string;
-  user: string;
-  timestamp: string;
-  referenceNumber?: string;
-  cost?: number;
-  location: string;
-  batchNumber?: string;
-}
-
-interface StockItem {
-  id: string;
-  name: string;
-  category: string;
-  currentStock: number;
-  minimumStock: number;
-  unit: string;
-  location: string;
-  lastUpdated: string;
-  status: 'in-stock' | 'low-stock' | 'out-of-stock';
-}
+// Use StockMovement from API service as the base for adjustments
+type StockAdjustmentType = 'RECEIVED' | 'USED' | 'WASTED' | 'RETURNED' | 'ADJUSTED';
 
 const StockManagement: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  
+  // Use inventory store
+  const { items, loading, error, fetchItems, addStock, useStock } = useInventoryStore();
+  
+  const [movements, setMovements] = useState<StockMovement[]>([]);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [adjustmentForm, setAdjustmentForm] = useState({
-    type: 'adjustment' as StockAdjustment['type'],
+    type: 'ADJUSTED' as StockAdjustmentType,
     quantity: 0,
     reason: '',
     notes: '',
     referenceNumber: '',
     batchNumber: ''
   });
-  const [filterType, setFilterType] = useState<'all' | StockAdjustment['type']>('all');
+  const [filterType, setFilterType] = useState<'all' | StockAdjustmentType>('all');
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('week');
+  const [movementsLoading, setMovementsLoading] = useState(false);
 
+  // Load inventory items and movements from API
   useEffect(() => {
-    // Generate mock data
-    const generateMockData = () => {
-      // Mock stock items
-      const mockItems: StockItem[] = [
-        {
-          id: 'item_1',
-          name: 'Premium Beef Tenderloin',
-          category: 'Meat',
-          currentStock: 15,
-          minimumStock: 10,
-          unit: 'lbs',
-          location: 'Walk-in Cooler A',
-          lastUpdated: '2024-01-20T14:30:00Z',
-          status: 'in-stock'
-        },
-        {
-          id: 'item_2',
-          name: 'Fresh Salmon Fillet',
-          category: 'Seafood',
-          currentStock: 5,
-          minimumStock: 15,
-          unit: 'lbs',
-          location: 'Walk-in Cooler B',
-          lastUpdated: '2024-01-20T12:15:00Z',
-          status: 'low-stock'
-        },
-        {
-          id: 'item_3',
-          name: 'Organic Baby Spinach',
-          category: 'Vegetables',
-          currentStock: 0,
-          minimumStock: 20,
-          unit: 'lbs',
-          location: 'Walk-in Cooler A',
-          lastUpdated: '2024-01-20T10:00:00Z',
-          status: 'out-of-stock'
-        }
-      ];
-      setStockItems(mockItems);
-
-      // Mock adjustments
-      const mockAdjustments: StockAdjustment[] = [
-        {
-          id: 'adj_1',
-          itemId: 'item_1',
-          itemName: 'Premium Beef Tenderloin',
-          category: 'Meat',
-          type: 'in',
-          quantity: 25,
-          unit: 'lbs',
-          reason: 'Delivery received',
-          notes: 'Fresh delivery from Premium Foods Co.',
-          user: 'Sarah Johnson',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          referenceNumber: 'DEL-2024-001',
-          cost: 712.50,
-          location: 'Walk-in Cooler A',
-          batchNumber: 'BT2024001'
-        },
-        {
-          id: 'adj_2',
-          itemId: 'item_1',
-          itemName: 'Premium Beef Tenderloin',
-          category: 'Meat',
-          type: 'out',
-          quantity: 8,
-          unit: 'lbs',
-          reason: 'Kitchen usage',
-          notes: 'Used for dinner service',
-          user: 'Mike Chen',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          location: 'Walk-in Cooler A'
-        },
-        {
-          id: 'adj_3',
-          itemId: 'item_2',
-          itemName: 'Fresh Salmon Fillet',
-          category: 'Seafood',
-          type: 'waste',
-          quantity: 3,
-          unit: 'lbs',
-          reason: 'Expired product',
-          notes: 'Past use-by date, disposed of safely',
-          user: 'Emily Davis',
-          timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          location: 'Walk-in Cooler B'
-        },
-        {
-          id: 'adj_4',
-          itemId: 'item_3',
-          itemName: 'Organic Baby Spinach',
-          category: 'Vegetables',
-          type: 'adjustment',
-          quantity: -5,
-          unit: 'lbs',
-          reason: 'Inventory correction',
-          notes: 'Correcting discrepancy found during count',
-          user: 'David Wilson',
-          timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-          location: 'Walk-in Cooler A'
-        },
-        {
-          id: 'adj_5',
-          itemId: 'item_2',
-          itemName: 'Fresh Salmon Fillet',
-          category: 'Seafood',
-          type: 'transfer',
-          quantity: 10,
-          unit: 'lbs',
-          reason: 'Location transfer',
-          notes: 'Moved from Freezer A to Walk-in Cooler B',
-          user: 'Lisa Martinez',
-          timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-          referenceNumber: 'TRF-2024-005',
-          location: 'Walk-in Cooler B'
-        }
-      ];
-      setAdjustments(mockAdjustments);
+    const loadData = async () => {
+      try {
+        // Load inventory items
+        await fetchItems();
+        
+        // Load recent movements (since we don't have a global movements endpoint yet,
+        // we'll fetch movements for individual items as needed)
+        setMovementsLoading(true);
+        setMovements([]); // For now, movements will be loaded per item
+      } catch (err) {
+        console.error('Failed to load stock data:', err);
+      } finally {
+        setMovementsLoading(false);
+      }
     };
 
-    generateMockData();
+    loadData();
     
     // Handle URL params for pre-selecting item
     const itemParam = searchParams.get('item');
@@ -179,102 +55,97 @@ const StockManagement: React.FC = () => {
       setSelectedItem(itemParam);
       setShowAdjustModal(true);
     }
-  }, [searchParams]);
+  }, [searchParams, fetchItems]);
 
-  const handleStockAdjustment = () => {
+  const handleStockAdjustment = async () => {
     if (!selectedItem || adjustmentForm.quantity === 0) return;
     
-    const item = stockItems.find(i => i.id === selectedItem);
+    const item = items.find(i => i.id === selectedItem);
     if (!item) return;
     
-    const adjustment: StockAdjustment = {
-      id: `adj_${Date.now()}`,
-      itemId: selectedItem,
-      itemName: item.name,
-      category: item.category,
-      type: adjustmentForm.type,
-      quantity: adjustmentForm.quantity,
-      unit: item.unit,
-      reason: adjustmentForm.reason,
-      notes: adjustmentForm.notes || undefined,
-      user: 'Current User', // Would be from auth context
-      timestamp: new Date().toISOString(),
-      referenceNumber: adjustmentForm.referenceNumber || undefined,
-      location: item.location,
-      batchNumber: adjustmentForm.batchNumber || undefined
-    };
-    
-    setAdjustments(prev => [adjustment, ...prev]);
-    
-    // Update stock levels
-    setStockItems(prev => prev.map(item => {
-      if (item.id === selectedItem) {
-        let newStock = item.currentStock;
-        
-        switch (adjustmentForm.type) {
-          case 'in':
-            newStock += adjustmentForm.quantity;
-            break;
-          case 'out':
-          case 'waste':
-            newStock -= adjustmentForm.quantity;
-            break;
-          case 'adjustment':
-            newStock = adjustmentForm.quantity; // Set to absolute value
-            break;
-          case 'transfer':
-            // For transfers, might need more complex logic
-            break;
-        }
-        
-        newStock = Math.max(0, newStock); // Ensure non-negative
-        
-        const status: StockItem['status'] = 
-          newStock === 0 ? 'out-of-stock' :
-          newStock <= item.minimumStock ? 'low-stock' :
-          'in-stock';
-        
-        return {
-          ...item,
-          currentStock: newStock,
-          status,
-          lastUpdated: new Date().toISOString()
-        };
+    try {
+      const notes = adjustmentForm.notes ? 
+        `${adjustmentForm.reason}${adjustmentForm.notes ? ': ' + adjustmentForm.notes : ''}` : 
+        adjustmentForm.reason;
+      
+      // Call appropriate API based on adjustment type
+      switch (adjustmentForm.type) {
+        case 'RECEIVED':
+          await addStock(
+            selectedItem, 
+            adjustmentForm.quantity, 
+            notes,
+            adjustmentForm.referenceNumber || undefined,
+            'stock-manager' // TODO: Get from auth context
+          );
+          break;
+        case 'USED':
+        case 'WASTED':
+          await useStock(
+            selectedItem, 
+            adjustmentForm.quantity, 
+            notes,
+            adjustmentForm.referenceNumber || undefined,
+            'stock-manager' // TODO: Get from auth context
+          );
+          break;
+        case 'ADJUSTED':
+        case 'RETURNED':
+          // For these, we'll use the adjustStock API method
+          await InventoryService.adjustStock({
+            inventory_item_id: selectedItem,
+            quantity: adjustmentForm.type === 'ADJUSTED' ? 
+              adjustmentForm.quantity - item.currentStock : // Difference for adjustment
+              adjustmentForm.quantity, // Amount for return
+            notes,
+            reference: adjustmentForm.referenceNumber || undefined,
+            performed_by: 'stock-manager' // TODO: Get from auth context
+          });
+          // Refresh the specific item to get updated stock levels
+          await fetchItems();
+          break;
       }
-      return item;
-    }));
-    
-    // Reset form
-    setAdjustmentForm({
-      type: 'adjustment',
-      quantity: 0,
-      reason: '',
-      notes: '',
-      referenceNumber: '',
-      batchNumber: ''
-    });
-    setSelectedItem('');
-    setShowAdjustModal(false);
+      
+      // Load updated movements for this item
+      const itemMovements = await InventoryService.getStockMovements(selectedItem, 10);
+      setMovements(itemMovements);
+      
+      // Reset form and close modal
+      setAdjustmentForm({
+        type: 'ADJUSTED',
+        quantity: 0,
+        reason: '',
+        notes: '',
+        referenceNumber: '',
+        batchNumber: ''
+      });
+      setShowAdjustModal(false);
+      setSelectedItem('');
+      
+    } catch (err) {
+      console.error('Failed to perform stock adjustment:', err);
+      alert('Failed to perform stock adjustment. Please try again.');
+    }
   };
 
-  const getAdjustmentTypeColor = (type: StockAdjustment['type']): string => {
+  const getAdjustmentTypeColor = (type: StockAdjustmentType): string => {
     switch (type) {
-      case 'in': return 'text-green-600 bg-green-100';
-      case 'out': return 'text-blue-600 bg-blue-100';
-      case 'adjustment': return 'text-amber-600 bg-amber-100';
-      case 'waste': return 'text-red-600 bg-red-100';
-      case 'transfer': return 'text-purple-600 bg-purple-100';
+      case 'RECEIVED': return 'text-green-600 bg-green-100';
+      case 'USED': return 'text-blue-600 bg-blue-100';
+      case 'ADJUSTED': return 'text-amber-600 bg-amber-100';
+      case 'WASTED': return 'text-red-600 bg-red-100';
+      case 'RETURNED': return 'text-purple-600 bg-purple-100';
       default: return 'text-neutral-600 bg-neutral-100';
     }
   };
 
-  const getAdjustmentIcon = (type: StockAdjustment['type']): string => {
+  const getAdjustmentIcon = (type: StockAdjustmentType): string => {
     switch (type) {
-      case 'in': return '⬆️';
-      case 'out': return '⬇️';
-      case 'adjustment': return '⚙️';
-      case 'waste': return '🗑️';
-      case 'transfer': return '🔄';
+      case 'RECEIVED': return '⬆️';
+      case 'USED': return '⬇️';
+      case 'ADJUSTED': return '⚙️';
+      case 'WASTED': return '🗑️';
+      case 'RETURNED': return '🔄';
       default: return '📄';
     }
   };

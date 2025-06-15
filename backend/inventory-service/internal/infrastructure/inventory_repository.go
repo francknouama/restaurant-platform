@@ -276,48 +276,207 @@ func (r *InventoryRepository) SearchItems(ctx context.Context, query string) ([]
 }
 
 func (r *InventoryRepository) CreateMovement(ctx context.Context, movement *inventory.StockMovement) error {
-	// Simplified implementation - in real scenario you'd have a separate movements table
-	return nil
+	query := `
+		INSERT INTO stock_movements (
+			id, inventory_item_id, type, quantity, previous_stock, new_stock,
+			notes, reference, performed_by, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+
+	_, err := r.db.ExecContext(ctx, query,
+		movement.ID.String(), movement.InventoryItemID.String(), string(movement.Type),
+		movement.Quantity, movement.PreviousStock, movement.NewStock,
+		nullString(movement.Notes), nullString(movement.Reference),
+		nullString(movement.PerformedBy), movement.CreatedAt)
+
+	return err
 }
 
 func (r *InventoryRepository) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit int) ([]*inventory.StockMovement, error) {
-	// Simplified implementation
-	return []*inventory.StockMovement{}, nil
+	query := `
+		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
+		       notes, reference, performed_by, created_at
+		FROM stock_movements 
+		WHERE inventory_item_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2`
+
+	return r.queryMovements(ctx, query, itemID.String(), limit)
 }
 
 func (r *InventoryRepository) GetMovementsByDateRange(ctx context.Context, start, end time.Time) ([]*inventory.StockMovement, error) {
-	// Simplified implementation
-	return []*inventory.StockMovement{}, nil
+	query := `
+		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
+		       notes, reference, performed_by, created_at
+		FROM stock_movements 
+		WHERE created_at >= $1 AND created_at <= $2
+		ORDER BY created_at DESC`
+
+	return r.queryMovements(ctx, query, start, end)
 }
 
 func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.SupplierID) (*inventory.Supplier, error) {
-	// Simplified implementation
-	return nil, fmt.Errorf("not implemented")
+	query := `
+		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		FROM suppliers WHERE id = $1`
+
+	var supplier inventory.Supplier
+	var idStr string
+	var contactName, email, phone, address, website, notes sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(
+		&idStr, &supplier.Name, &contactName, &email, &phone,
+		&address, &website, &notes, &supplier.IsActive,
+		&supplier.CreatedAt, &supplier.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("supplier not found")
+		}
+		return nil, err
+	}
+
+	supplier.ID = inventory.SupplierID(idStr)
+	supplier.ContactName = contactName.String
+	supplier.Email = email.String
+	supplier.Phone = phone.String
+	supplier.Address = address.String
+	supplier.Website = website.String
+	supplier.Notes = notes.String
+
+	return &supplier, nil
 }
 
 func (r *InventoryRepository) UpdateSupplier(ctx context.Context, supplier *inventory.Supplier) error {
-	// Simplified implementation
-	return fmt.Errorf("not implemented")
+	query := `
+		UPDATE suppliers 
+		SET name = $2, contact_name = $3, email = $4, phone = $5,
+		    address = $6, website = $7, notes = $8, is_active = $9, updated_at = $10
+		WHERE id = $1`
+
+	_, err := r.db.ExecContext(ctx, query,
+		supplier.ID.String(), supplier.Name, nullString(supplier.ContactName),
+		nullString(supplier.Email), nullString(supplier.Phone),
+		nullString(supplier.Address), nullString(supplier.Website),
+		nullString(supplier.Notes), supplier.IsActive, supplier.UpdatedAt)
+
+	return err
 }
 
 func (r *InventoryRepository) DeleteSupplier(ctx context.Context, id inventory.SupplierID) error {
-	// Simplified implementation
-	return fmt.Errorf("not implemented")
+	query := `DELETE FROM suppliers WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id.String())
+	return err
 }
 
 func (r *InventoryRepository) ListSuppliers(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
-	// Simplified implementation
-	return []*inventory.Supplier{}, 0, nil
+	countQuery := `SELECT COUNT(*) FROM suppliers`
+	var total int
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		FROM suppliers 
+		ORDER BY name ASC 
+		LIMIT $1 OFFSET $2`
+
+	suppliers, err := r.querySuppliers(ctx, query, limit, offset)
+	return suppliers, total, err
 }
 
 func (r *InventoryRepository) GetActiveSuppliers(ctx context.Context) ([]*inventory.Supplier, error) {
-	// Simplified implementation
-	return []*inventory.Supplier{}, nil
+	query := `
+		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		FROM suppliers 
+		WHERE is_active = true
+		ORDER BY name ASC`
+
+	return r.querySuppliers(ctx, query)
 }
 
 func (r *InventoryRepository) GetItemsBySupplier(ctx context.Context, supplierID inventory.SupplierID) ([]*inventory.InventoryItem, error) {
-	// Simplified implementation
-	return []*inventory.InventoryItem{}, nil
+	query := `
+		SELECT id, sku, name, description, current_stock, unit, min_threshold,
+		       max_threshold, reorder_point, cost, category, location, supplier_id,
+		       last_ordered, expiry_date, created_at, updated_at
+		FROM inventory 
+		WHERE supplier_id = $1
+		ORDER BY name ASC`
+
+	return r.queryItems(ctx, query, supplierID.String())
+}
+
+// Helper methods for querying movements
+func (r *InventoryRepository) queryMovements(ctx context.Context, query string, args ...interface{}) ([]*inventory.StockMovement, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var movements []*inventory.StockMovement
+	for rows.Next() {
+		var movement inventory.StockMovement
+		var idStr, itemIDStr, typeStr string
+		var notes, reference, performedBy sql.NullString
+
+		err := rows.Scan(
+			&idStr, &itemIDStr, &typeStr, &movement.Quantity,
+			&movement.PreviousStock, &movement.NewStock,
+			&notes, &reference, &performedBy, &movement.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		movement.ID = inventory.MovementID(idStr)
+		movement.InventoryItemID = inventory.InventoryItemID(itemIDStr)
+		movement.Type = inventory.MovementType(typeStr)
+		movement.Notes = notes.String
+		movement.Reference = reference.String
+		movement.PerformedBy = performedBy.String
+
+		movements = append(movements, &movement)
+	}
+
+	return movements, rows.Err()
+}
+
+// Helper methods for querying suppliers
+func (r *InventoryRepository) querySuppliers(ctx context.Context, query string, args ...interface{}) ([]*inventory.Supplier, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var suppliers []*inventory.Supplier
+	for rows.Next() {
+		var supplier inventory.Supplier
+		var idStr string
+		var contactName, email, phone, address, website, notes sql.NullString
+
+		err := rows.Scan(
+			&idStr, &supplier.Name, &contactName, &email, &phone,
+			&address, &website, &notes, &supplier.IsActive,
+			&supplier.CreatedAt, &supplier.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		supplier.ID = inventory.SupplierID(idStr)
+		supplier.ContactName = contactName.String
+		supplier.Email = email.String
+		supplier.Phone = phone.String
+		supplier.Address = address.String
+		supplier.Website = website.String
+		supplier.Notes = notes.String
+
+		suppliers = append(suppliers, &supplier)
+	}
+
+	return suppliers, rows.Err()
 }
 
 // Helper functions

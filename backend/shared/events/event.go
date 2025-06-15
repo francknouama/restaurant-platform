@@ -32,11 +32,14 @@ const (
 	StockReceivedEvent           EventType = "inventory.stock.received"
 	StockUsedEvent               EventType = "inventory.stock.used"
 	StockAdjustedEvent           EventType = "inventory.stock.adjusted"
+	StockWastedEvent             EventType = "inventory.stock.wasted"
+	StockReturnedEvent           EventType = "inventory.stock.returned"
 	LowStockAlertEvent           EventType = "inventory.alert.low_stock"
 	OutOfStockAlertEvent         EventType = "inventory.alert.out_of_stock"
 	StockReservedEvent           EventType = "inventory.stock.reserved"
 	SupplierCreatedEvent         EventType = "inventory.supplier.created"
 	SupplierUpdatedEvent         EventType = "inventory.supplier.updated"
+	SupplierDeletedEvent         EventType = "inventory.supplier.deleted"
 
 	// Kitchen Events
 	KitchenOrderCreatedEvent        EventType = "kitchen.order.created"

@@ -746,7 +746,7 @@ func (suite *InventoryServiceTestSuite) TestCreateSupplier_Success() {
 	suite.mockPublisher.On("Publish", suite.ctx, mock.AnythingOfType("*events.DomainEvent")).Return(nil)
 
 	// When
-	supplier, err := suite.service.CreateSupplier(suite.ctx, name)
+	supplier, err := suite.service.CreateSupplier(suite.ctx, name, "", "", "", "", "", "")
 
 	// Then
 	assert.NoError(suite.T(), err)
@@ -757,7 +757,7 @@ func (suite *InventoryServiceTestSuite) TestCreateSupplier_Success() {
 
 func (suite *InventoryServiceTestSuite) TestCreateSupplier_EmptyName() {
 	// When
-	supplier, err := suite.service.CreateSupplier(suite.ctx, "")
+	supplier, err := suite.service.CreateSupplier(suite.ctx, "", "", "", "", "", "", "")
 
 	// Then
 	assert.Error(suite.T(), err)
@@ -774,7 +774,7 @@ func (suite *InventoryServiceTestSuite) TestCreateSupplier_RepositoryError() {
 	suite.mockRepo.On("CreateSupplier", suite.ctx, mock.AnythingOfType("*inventory.Supplier")).Return(repositoryError)
 
 	// When
-	supplier, err := suite.service.CreateSupplier(suite.ctx, name)
+	supplier, err := suite.service.CreateSupplier(suite.ctx, name, "", "", "", "", "", "")
 
 	// Then
 	assert.Error(suite.T(), err)

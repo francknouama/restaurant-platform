@@ -265,9 +265,85 @@ func (s *InventoryService) ListItems(ctx context.Context, offset, limit int, fil
 	return s.inventoryRepo.ListItems(ctx, offset, limit)
 }
 
-// CreateSupplier creates a new supplier
-func (s *InventoryService) CreateSupplier(ctx context.Context, name string) (*inventory.Supplier, error) {
+// RecordMovement records a stock movement
+func (s *InventoryService) RecordMovement(ctx context.Context, itemID inventory.InventoryItemID, movementType inventory.MovementType, quantity float64, notes, reference, performedBy string) error {
+	item, err := s.inventoryRepo.GetItemByID(ctx, itemID)
+	if err != nil {
+		return err
+	}
+
+	movement, err := item.AddMovement(movementType, quantity, notes, reference, performedBy)
+	if err != nil {
+		return err
+	}
+
+	// Save the movement
+	err = s.inventoryRepo.CreateMovement(ctx, movement)
+	if err != nil {
+		return err
+	}
+
+	// Update the item with new stock level
+	err = s.inventoryRepo.UpdateItem(ctx, item)
+	if err != nil {
+		return err
+	}
+
+	// Publish movement event based on type
+	eventType := events.StockUsedEvent
+	switch movementType {
+	case inventory.MovementTypeReceived:
+		eventType = events.StockReceivedEvent
+	case inventory.MovementTypeWasted:
+		eventType = events.StockWastedEvent
+	case inventory.MovementTypeAdjusted:
+		eventType = events.StockAdjustedEvent
+	case inventory.MovementTypeReturned:
+		eventType = events.StockReturnedEvent
+	}
+
+	eventData, err := events.ToEventData(events.StockMovementData{
+		ItemID:        item.ID.String(),
+		SKU:           item.SKU,
+		ItemName:      item.Name,
+		MovementType:  string(movement.Type),
+		Quantity:      movement.Quantity,
+		PreviousStock: movement.PreviousStock,
+		NewStock:      movement.NewStock,
+		Reference:     reference,
+		PerformedBy:   performedBy,
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
+
+	event := events.NewDomainEvent(eventType, item.ID.String(), eventData).
+		WithMetadata("service", "inventory-service").
+		WithMetadata("sku", item.SKU)
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish stock movement event: %v", err)
+	}
+
+	return nil
+}
+
+// GetMovementsByItemID gets stock movements for an item
+func (s *InventoryService) GetMovementsByItemID(ctx context.Context, itemID inventory.InventoryItemID, limit int) ([]*inventory.StockMovement, error) {
+	return s.inventoryRepo.GetMovementsByItemID(ctx, itemID, limit)
+}
+
+// CreateSupplier creates a new supplier with full details
+func (s *InventoryService) CreateSupplier(ctx context.Context, name, contactName, email, phone, address, website, notes string) (*inventory.Supplier, error) {
 	supplier, err := inventory.NewSupplier(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update supplier with additional details
+	err = supplier.UpdateDetails(name, contactName, email, phone, address, website, notes)
 	if err != nil {
 		return nil, err
 	}
@@ -300,6 +376,85 @@ func (s *InventoryService) CreateSupplier(ctx context.Context, name string) (*in
 	}
 
 	return supplier, nil
+}
+
+// GetSupplierByID gets a supplier by ID
+func (s *InventoryService) GetSupplierByID(ctx context.Context, id inventory.SupplierID) (*inventory.Supplier, error) {
+	return s.inventoryRepo.GetSupplierByID(ctx, id)
+}
+
+// UpdateSupplier updates a supplier
+func (s *InventoryService) UpdateSupplier(ctx context.Context, supplier *inventory.Supplier) error {
+	err := s.inventoryRepo.UpdateSupplier(ctx, supplier)
+	if err != nil {
+		return err
+	}
+
+	// Publish supplier updated event
+	eventData, err := events.ToEventData(events.SupplierEventData{
+		SupplierID:  supplier.ID.String(),
+		Name:        supplier.Name,
+		ContactName: supplier.ContactName,
+		Email:       supplier.Email,
+		Phone:       supplier.Phone,
+		IsActive:    supplier.IsActive,
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
+
+	event := events.NewDomainEvent(events.SupplierUpdatedEvent, supplier.ID.String(), eventData).
+		WithMetadata("service", "inventory-service")
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish supplier updated event: %v", err)
+	}
+
+	return nil
+}
+
+// DeleteSupplier deletes a supplier
+func (s *InventoryService) DeleteSupplier(ctx context.Context, id inventory.SupplierID) error {
+	// Check if supplier has any items
+	items, err := s.inventoryRepo.GetItemsBySupplier(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if len(items) > 0 {
+		return errors.WrapConflict("DeleteSupplier", "supplier", "supplier has associated inventory items", nil)
+	}
+
+	err = s.inventoryRepo.DeleteSupplier(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Publish supplier deleted event
+	eventData, err := events.ToEventData(events.SupplierDeletedData{
+		SupplierID: id.String(),
+	})
+
+	if err != nil {
+		log.Printf("Failed to convert event data to map: %v", err)
+		return err
+	}
+
+	event := events.NewDomainEvent(events.SupplierDeletedEvent, id.String(), eventData).
+		WithMetadata("service", "inventory-service")
+
+	if err := s.eventPublisher.Publish(ctx, event); err != nil {
+		log.Printf("Failed to publish supplier deleted event: %v", err)
+	}
+
+	return nil
+}
+
+// ListSuppliers lists suppliers with pagination
+func (s *InventoryService) ListSuppliers(ctx context.Context, offset, limit int) ([]*inventory.Supplier, int, error) {
+	return s.inventoryRepo.ListSuppliers(ctx, offset, limit)
 }
 
 // Helper function to check and publish stock alerts
