@@ -22,7 +22,7 @@ func (r *InventoryRepository) CreateItem(ctx context.Context, item *inventory.In
 			id, sku, name, description, current_stock, unit, min_threshold, 
 			max_threshold, reorder_point, cost, category, location, supplier_id, 
 			last_ordered, expiry_date, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		item.ID.String(), item.SKU, item.Name, item.Description, item.CurrentStock,
@@ -38,7 +38,7 @@ func (r *InventoryRepository) GetItemByID(ctx context.Context, id inventory.Inve
 		SELECT id, sku, name, description, current_stock, unit, min_threshold,
 		       max_threshold, reorder_point, cost, category, location, supplier_id,
 		       last_ordered, expiry_date, created_at, updated_at
-		FROM inventory WHERE id = $1`
+		FROM inventory WHERE id = ?`
 
 	var item inventory.InventoryItem
 	var idStr, unit string
@@ -78,7 +78,7 @@ func (r *InventoryRepository) GetItemBySKU(ctx context.Context, sku string) (*in
 		SELECT id, sku, name, description, current_stock, unit, min_threshold,
 		       max_threshold, reorder_point, cost, category, location, supplier_id,
 		       last_ordered, expiry_date, created_at, updated_at
-		FROM inventory WHERE sku = $1`
+		FROM inventory WHERE sku = ?`
 
 	var item inventory.InventoryItem
 	var idStr, unit string
@@ -148,7 +148,7 @@ func (r *InventoryRepository) UpdateItem(ctx context.Context, item *inventory.In
 }
 
 func (r *InventoryRepository) CheckStockAvailability(ctx context.Context, sku string, quantity float64) (bool, error) {
-	query := `SELECT current_stock FROM inventory WHERE sku = $1`
+	query := `SELECT current_stock FROM inventory WHERE sku = ?`
 	
 	var currentStock float64
 	err := r.db.QueryRowContext(ctx, query, sku).Scan(&currentStock)
@@ -200,7 +200,7 @@ func (r *InventoryRepository) ListItems(ctx context.Context, offset, limit int) 
 		       last_ordered, expiry_date, created_at, updated_at
 		FROM inventory 
 		ORDER BY name ASC 
-		LIMIT $1 OFFSET $2`
+		LIMIT ? OFFSET ?`
 
 	items, err := r.queryItems(ctx, query, limit, offset)
 	return items, total, err
@@ -252,7 +252,7 @@ func (r *InventoryRepository) queryItems(ctx context.Context, query string, args
 func (r *InventoryRepository) CreateSupplier(ctx context.Context, supplier *inventory.Supplier) error {
 	query := `
 		INSERT INTO suppliers (id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		supplier.ID.String(), supplier.Code, supplier.Name, supplier.ContactInfo.ContactName,
@@ -265,7 +265,7 @@ func (r *InventoryRepository) CreateSupplier(ctx context.Context, supplier *inve
 
 // Stub implementations for remaining interface methods
 func (r *InventoryRepository) DeleteItem(ctx context.Context, id inventory.InventoryItemID) error {
-	query := `DELETE FROM inventory WHERE id = $1`
+	query := `DELETE FROM inventory WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id.String())
 	return err
 }
@@ -275,7 +275,7 @@ func (r *InventoryRepository) GetItemsByCategory(ctx context.Context, category s
 		SELECT id, sku, name, description, current_stock, unit, min_threshold,
 		       max_threshold, reorder_point, cost, category, location, supplier_id,
 		       last_ordered, expiry_date, created_at, updated_at
-		FROM inventory WHERE category = $1`
+		FROM inventory WHERE category = ?`
 	
 	return r.queryItems(ctx, query, category)
 }
@@ -286,10 +286,10 @@ func (r *InventoryRepository) SearchItems(ctx context.Context, query string) ([]
 		       max_threshold, reorder_point, cost, category, location, supplier_id,
 		       last_ordered, expiry_date, created_at, updated_at
 		FROM inventory 
-		WHERE name ILIKE $1 OR sku ILIKE $1 OR description ILIKE $1`
+		WHERE name LIKE ? OR sku LIKE ? OR description LIKE ?`
 	
 	searchPattern := "%" + query + "%"
-	return r.queryItems(ctx, sql, searchPattern)
+	return r.queryItems(ctx, sql, searchPattern, searchPattern, searchPattern)
 }
 
 func (r *InventoryRepository) CreateMovement(ctx context.Context, movement *inventory.StockMovement) error {
@@ -297,7 +297,7 @@ func (r *InventoryRepository) CreateMovement(ctx context.Context, movement *inve
 		INSERT INTO stock_movements (
 			id, inventory_item_id, type, quantity, previous_stock, new_stock,
 			unit, cost, reason, reference, performed_by, performed_at, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		movement.ID.String(), movement.InventoryItemID.String(), string(movement.Type),
@@ -314,7 +314,7 @@ func (r *InventoryRepository) GetMovementByID(ctx context.Context, id inventory.
 		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
 		       unit, cost, reason, reference, performed_by, performed_at, created_at
 		FROM stock_movements 
-		WHERE id = $1`
+		WHERE id = ?`
 
 	movements, err := r.queryMovements(ctx, query, id.String())
 	if err != nil {
@@ -331,9 +331,9 @@ func (r *InventoryRepository) GetMovementsByItemID(ctx context.Context, itemID i
 		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
 		       unit, cost, reason, reference, performed_by, performed_at, created_at
 		FROM stock_movements 
-		WHERE inventory_item_id = $1
+		WHERE inventory_item_id = ?
 		ORDER BY performed_at DESC
-		LIMIT $2 OFFSET $3`
+		LIMIT ? OFFSET ?`
 
 	return r.queryMovements(ctx, query, itemID.String(), limit, offset)
 }
@@ -343,7 +343,7 @@ func (r *InventoryRepository) GetMovementsByDateRange(ctx context.Context, start
 		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
 		       unit, cost, reason, reference, performed_by, performed_at, created_at
 		FROM stock_movements 
-		WHERE performed_at >= $1 AND performed_at <= $2
+		WHERE performed_at >= ? AND performed_at <= ?
 		ORDER BY performed_at DESC`
 
 	return r.queryMovements(ctx, query, start, end)
@@ -354,14 +354,14 @@ func (r *InventoryRepository) GetMovementsByType(ctx context.Context, movementTy
 		SELECT id, inventory_item_id, type, quantity, previous_stock, new_stock,
 		       unit, cost, reason, reference, performed_by, performed_at, created_at
 		FROM stock_movements 
-		WHERE type = $1
+		WHERE type = ?
 		ORDER BY performed_at DESC`
 
 	return r.queryMovements(ctx, query, string(movementType))
 }
 
 func (r *InventoryRepository) DeleteMovement(ctx context.Context, id inventory.MovementID) error {
-	query := `DELETE FROM stock_movements WHERE id = $1`
+	query := `DELETE FROM stock_movements WHERE id = ?`
 	result, err := r.db.ExecContext(ctx, query, id.String())
 	if err != nil {
 		return err
@@ -382,7 +382,7 @@ func (r *InventoryRepository) DeleteMovement(ctx context.Context, id inventory.M
 func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.SupplierID) (*inventory.Supplier, error) {
 	query := `
 		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
-		FROM suppliers WHERE id = $1`
+		FROM suppliers WHERE id = ?`
 
 	var supplier inventory.Supplier
 	var idStr string
@@ -414,7 +414,7 @@ func (r *InventoryRepository) GetSupplierByID(ctx context.Context, id inventory.
 func (r *InventoryRepository) GetSupplierByCode(ctx context.Context, code string) (*inventory.Supplier, error) {
 	query := `
 		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
-		FROM suppliers WHERE code = $1`
+		FROM suppliers WHERE code = ?`
 
 	var supplier inventory.Supplier
 	var idStr string
@@ -446,31 +446,31 @@ func (r *InventoryRepository) GetSupplierByCode(ctx context.Context, code string
 func (r *InventoryRepository) UpdateSupplier(ctx context.Context, supplier *inventory.Supplier) error {
 	query := `
 		UPDATE suppliers 
-		SET code = $2, name = $3, contact_name = $4, email = $5, phone = $6,
-		    address = $7, website = $8, notes = $9, rating = $10, is_active = $11, updated_at = $12
-		WHERE id = $1`
+		SET code = ?, name = ?, contact_name = ?, email = ?, phone = ?,
+		    address = ?, website = ?, notes = ?, rating = ?, is_active = ?, updated_at = ?
+		WHERE id = ?`
 
 	_, err := r.db.ExecContext(ctx, query,
-		supplier.ID.String(), supplier.Code, supplier.Name,
+		supplier.Code, supplier.Name,
 		nullString(supplier.ContactInfo.ContactName), nullString(supplier.ContactInfo.Email),
 		nullString(supplier.ContactInfo.Phone), nullString(supplier.ContactInfo.Address),
 		nullString(supplier.Website), nullString(supplier.Notes), supplier.Rating,
-		supplier.IsActive, supplier.UpdatedAt)
+		supplier.IsActive, supplier.UpdatedAt, supplier.ID.String())
 
 	return err
 }
 
 func (r *InventoryRepository) DeleteSupplier(ctx context.Context, id inventory.SupplierID) error {
-	query := `DELETE FROM suppliers WHERE id = $1`
+	query := `DELETE FROM suppliers WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id.String())
 	return err
 }
 
 func (r *InventoryRepository) ListSuppliers(ctx context.Context, activeOnly bool) ([]*inventory.Supplier, error) {
 	query := `
-		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
 		FROM suppliers 
-		WHERE ($1 = false OR is_active = true)
+		WHERE (? = false OR is_active = true)
 		ORDER BY name ASC`
 
 	return r.querySuppliers(ctx, query, activeOnly)
@@ -485,10 +485,10 @@ func (r *InventoryRepository) ListSuppliersWithPagination(ctx context.Context, o
 	}
 
 	query := `
-		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
 		FROM suppliers 
 		ORDER BY name ASC 
-		LIMIT $1 OFFSET $2`
+		LIMIT ? OFFSET ?`
 
 	suppliers, err := r.querySuppliers(ctx, query, limit, offset)
 	return suppliers, total, err
@@ -496,17 +496,17 @@ func (r *InventoryRepository) ListSuppliersWithPagination(ctx context.Context, o
 
 func (r *InventoryRepository) GetSuppliersByItem(ctx context.Context, itemID inventory.InventoryItemID) ([]*inventory.Supplier, error) {
 	query := `
-		SELECT s.id, s.name, s.contact_name, s.email, s.phone, s.address, s.website, s.notes, s.is_active, s.created_at, s.updated_at
+		SELECT s.id, s.code, s.name, s.contact_name, s.email, s.phone, s.address, s.website, s.notes, s.rating, s.is_active, s.created_at, s.updated_at
 		FROM suppliers s
 		JOIN inventory i ON s.id = i.supplier_id
-		WHERE i.id = $1`
+		WHERE i.id = ?`
 
 	return r.querySuppliers(ctx, query, itemID.String())
 }
 
 func (r *InventoryRepository) GetActiveSuppliers(ctx context.Context) ([]*inventory.Supplier, error) {
 	query := `
-		SELECT id, name, contact_name, email, phone, address, website, notes, is_active, created_at, updated_at
+		SELECT id, code, name, contact_name, email, phone, address, website, notes, rating, is_active, created_at, updated_at
 		FROM suppliers 
 		WHERE is_active = true
 		ORDER BY name ASC`
@@ -520,7 +520,7 @@ func (r *InventoryRepository) GetItemsBySupplier(ctx context.Context, supplierID
 		       max_threshold, reorder_point, cost, category, location, supplier_id,
 		       last_ordered, expiry_date, created_at, updated_at
 		FROM inventory 
-		WHERE supplier_id = $1
+		WHERE supplier_id = ?
 		ORDER BY name ASC`
 
 	return r.queryItems(ctx, query, supplierID.String())
@@ -551,6 +551,7 @@ func (r *InventoryRepository) queryMovements(ctx context.Context, query string, 
 
 		movement.ID = inventory.MovementID(idStr)
 		movement.InventoryItemID = inventory.InventoryItemID(itemIDStr)
+		movement.ItemID = inventory.InventoryItemID(itemIDStr) // Set alias for compatibility
 		movement.Type = inventory.MovementType(typeStr)
 		movement.Unit = inventory.UnitType(unitStr)
 		movement.Reason = reason.String
