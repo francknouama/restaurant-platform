@@ -129,7 +129,7 @@ jobs:
           cd ${{ matrix.service.path }}
           if [ ! -f Dockerfile ]; then
             echo "Dockerfile not found, creating minimal one for scanning..."
-            cat > Dockerfile << 'EOF'
+            cat > Dockerfile << 'DOCKERFILE_EOF'
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -142,7 +142,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /app/main .
 CMD ["./main"]
-EOF
+DOCKERFILE_EOF
           fi
           docker build -t ${{ matrix.service.name }}:scanning .
 
