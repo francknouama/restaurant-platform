@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,10 +42,15 @@ func (id *ID[T]) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// NewID creates a new type-safe ID with timestamp-based generation
+// Global atomic counter for unique ID generation
+var globalIDCounter uint64
+
+// NewID creates a new type-safe ID with atomic counter to prevent collisions
 func NewID[T EntityMarker](prefix string) ID[T] {
-	timestamp := time.Now().Format("20060102150405.000000")
-	return ID[T](fmt.Sprintf("%s_%s", prefix, timestamp))
+	now := time.Now()
+	counter := atomic.AddUint64(&globalIDCounter, 1)
+	id := fmt.Sprintf("%s_%d_%d", prefix, now.UnixNano(), counter)
+	return ID[T](id)
 }
 
 // ParseID parses a string into a type-safe ID
