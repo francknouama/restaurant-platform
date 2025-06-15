@@ -33,6 +33,10 @@ func (p *PasswordService) HashPassword(password string) (string, error) {
 }
 
 func (p *PasswordService) ComparePassword(password, hash string) bool {
+	// Don't validate the password during comparison - it's already stored
+	if password == "" || hash == "" {
+		return false
+	}
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
@@ -54,15 +58,18 @@ func (p *PasswordService) ValidatePassword(password string) error {
 	)
 
 	for _, char := range password {
-		switch {
-		case unicode.IsUpper(char):
-			hasUpper = true
-		case unicode.IsLower(char):
-			hasLower = true
-		case unicode.IsNumber(char):
-			hasNumber = true
-		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+		// Check for special characters first, including Unicode
+		if unicode.IsPunct(char) || unicode.IsSymbol(char) || char > 127 {
 			hasSpecial = true
+		}
+		
+		// Then check for letter/number types
+		if unicode.IsUpper(char) {
+			hasUpper = true
+		} else if unicode.IsLower(char) {
+			hasLower = true
+		} else if unicode.IsNumber(char) {
+			hasNumber = true
 		}
 	}
 
@@ -111,7 +118,7 @@ func isCommonPassword(password string) bool {
 		`^(.)\1+$`,        // All same character
 		`^\d+$`,           // All numbers
 		`^[a-zA-Z]+$`,     // All letters
-		`^password\d*$`,   // password followed by numbers
+		`(?i)^password\d*[!@#$%^&*()_+={}[\]|\\:";'<>?,./]*$`,   // password followed by numbers and optionally special chars (case insensitive)
 		`^\d{4,}$`,        // 4+ consecutive numbers
 	}
 
@@ -130,12 +137,13 @@ func hasSequentialChars(password string) bool {
 		return false
 	}
 
-	for i := 0; i < len(password)-2; i++ {
-		// Check for ascending sequence
+	// Check for sequences of 3+ consecutive characters
+	for i := 0; i <= len(password)-3; i++ {
+		// Check for ascending sequence (abc, 123)
 		if password[i]+1 == password[i+1] && password[i+1]+1 == password[i+2] {
 			return true
 		}
-		// Check for descending sequence
+		// Check for descending sequence (cba, 321)
 		if password[i]-1 == password[i+1] && password[i+1]-1 == password[i+2] {
 			return true
 		}
@@ -171,6 +179,8 @@ func (p *PasswordService) EstimatePasswordStrength(password string) int {
 		case unicode.IsNumber(char):
 			hasNumber = true
 		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		case char > 127: // Unicode characters like é, ñ, etc.
 			hasSpecial = true
 		}
 	}
