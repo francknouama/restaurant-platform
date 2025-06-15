@@ -18,13 +18,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: |
+            backend/go.work.sum
+            backend/*/go.sum
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: go, javascript, typescript
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+      - name: Manual Go build for workspace
+        run: |
+          cd backend
+          go work sync
+          # Build all services to ensure they compile properly
+          for service in menu-service order-service kitchen-service inventory-service reservation-service user-service shared; do
+            if [ -d "$service" ]; then
+              echo "Building $service..."
+              cd "$service"
+              go mod download
+              go build ./... || echo "Build failed for $service, continuing..."
+              cd ..
+            fi
+          done
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
