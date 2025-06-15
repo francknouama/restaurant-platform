@@ -412,8 +412,10 @@ func (suite *InventoryServiceIntegrationTestSuite) TestMovementReporting() {
 	for _, m := range allMovements {
 		if m.Type == inventory.MovementTypeInbound {
 			netChange += m.Quantity
+		} else if m.Type == inventory.MovementTypeAdjustment {
+			netChange += m.Quantity // Adjustment quantity can be positive or negative
 		} else {
-			netChange -= m.Quantity
+			netChange -= m.Quantity // Outbound movements
 		}
 	}
 	

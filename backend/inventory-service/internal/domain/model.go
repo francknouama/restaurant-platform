@@ -1,9 +1,12 @@
 package inventory
 
 import (
+	"fmt"
+	"sync/atomic"
+	"time"
+	
 	"github.com/restaurant-platform/shared/pkg/errors"
 	"github.com/restaurant-platform/shared/pkg/types"
-	"time"
 )
 
 // Inventory domain entity markers for type-safe IDs
@@ -138,7 +141,7 @@ func NewInventoryItem(sku, name string, initialStock float64, unit UnitType, cos
 
 	now := time.Now()
 	return &InventoryItem{
-		ID:           types.NewID[InventoryItemEntity]("inv"),
+		ID:           NewInventoryItemID(),
 		SKU:          sku,
 		Name:         name,
 		CurrentStock: initialStock,
@@ -158,7 +161,7 @@ func NewSupplier(name string) (*Supplier, error) {
 
 	now := time.Now()
 	return &Supplier{
-		ID:        types.NewID[SupplierEntity]("sup"),
+		ID:        NewSupplierID(),
 		Name:      name,
 		IsActive:  true,
 		CreatedAt: now,
@@ -191,7 +194,7 @@ func (i *InventoryItem) AddMovement(movementType MovementType, quantity float64,
 
 	now := time.Now()
 	movement := &StockMovement{
-		ID:              types.NewID[MovementEntity]("mov"),
+		ID:              NewMovementID(),
 		InventoryItemID: i.ID,
 		ItemID:          i.ID, // Alias for compatibility
 		Type:            movementType,
@@ -319,17 +322,33 @@ func (s *Supplier) Deactivate() {
 // InventoryMovement is an alias for StockMovement
 type InventoryMovement = StockMovement
 
-// NewMovementID creates a new movement ID
-func NewMovementID() MovementID {
-	return types.NewID[MovementEntity]("mov")
-}
+// Atomic counters for unique ID generation
+var (
+	supplierCounter uint64
+	movementCounter uint64
+	inventoryCounter uint64
+)
 
-// NewInventoryItemID creates a new inventory item ID  
-func NewInventoryItemID() InventoryItemID {
-	return types.NewID[InventoryItemEntity]("inv")
-}
-
-// NewSupplierID creates a new supplier ID
+// NewSupplierID creates a new supplier ID with atomic counter
 func NewSupplierID() SupplierID {
-	return types.NewID[SupplierEntity]("sup")
+	now := time.Now()
+	counter := atomic.AddUint64(&supplierCounter, 1)
+	id := fmt.Sprintf("sup_%d_%d", now.UnixNano(), counter)
+	return SupplierID(id)
+}
+
+// NewMovementID creates a new movement ID with atomic counter
+func NewMovementID() MovementID {
+	now := time.Now()
+	counter := atomic.AddUint64(&movementCounter, 1)
+	id := fmt.Sprintf("mov_%d_%d", now.UnixNano(), counter)
+	return MovementID(id)
+}
+
+// NewInventoryItemID creates a new inventory item ID with atomic counter
+func NewInventoryItemID() InventoryItemID {
+	now := time.Now()
+	counter := atomic.AddUint64(&inventoryCounter, 1)
+	id := fmt.Sprintf("inv_%d_%d", now.UnixNano(), counter)
+	return InventoryItemID(id)
 }
