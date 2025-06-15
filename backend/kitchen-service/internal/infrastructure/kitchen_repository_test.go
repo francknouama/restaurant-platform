@@ -465,14 +465,6 @@ func (suite *KitchenOrderRepositoryTestSuite) TestList_WithDateFilters() {
 	assert := assert.New(suite.T())
 	assert.NoError(err)
 	
-	// Debug: Let's see what we actually got
-	if len(orders) != 2 {
-		fmt.Printf("Expected 2 orders, got %d\n", len(orders))
-		fmt.Printf("DateFrom: %v\n", dateFrom)
-		for i, order := range orders {
-			fmt.Printf("Order %d: %s, CreatedAt: %v\n", i, order.OrderID, order.CreatedAt)
-		}
-	}
 	
 	assert.Len(orders, 2) // Only order2 and order3
 	assert.Equal(2, totalCount)

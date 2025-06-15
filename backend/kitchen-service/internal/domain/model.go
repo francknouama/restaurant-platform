@@ -1,9 +1,17 @@
 package domain
 
 import (
+	"fmt"
+	"sync/atomic"
+	"time"
+
 	"github.com/restaurant-platform/shared/pkg/errors"
 	"github.com/restaurant-platform/shared/pkg/types"
-	"time"
+)
+
+var (
+	kitchenOrderCounter uint64
+	kitchenItemCounter  uint64
 )
 
 // Kitchen domain entity markers for type-safe IDs
@@ -102,8 +110,9 @@ func NewKitchenOrder(orderID, tableID string) (*KitchenOrder, error) {
 	}
 
 	now := time.Now()
+	counter := atomic.AddUint64(&kitchenOrderCounter, 1)
 	return &KitchenOrder{
-		ID:            KitchenOrderID("ko_" + now.Format("20060102150405.000000")), // Simple ID generation
+		ID:            KitchenOrderID(fmt.Sprintf("ko_%d_%d", now.UnixNano(), counter)), // Use nanoseconds + counter for uniqueness
 		OrderID:       orderID,
 		TableID:       tableID,
 		Status:        KitchenOrderStatusNew,
@@ -124,9 +133,11 @@ func (ko *KitchenOrder) AddItem(menuItemID, name string, quantity int, prepTime 
 		return errors.WrapValidation("AddItem", "quantity", "quantity must be positive", nil)
 	}
 
-	// Create a new item
+	// Create a new item with unique ID
+	now := time.Now()
+	counter := atomic.AddUint64(&kitchenItemCounter, 1)
 	item := &KitchenItem{
-		ID:            KitchenItemID("ki_" + time.Now().Format("20060102150405.000000")),
+		ID:            KitchenItemID(fmt.Sprintf("ki_%d_%d", now.UnixNano(), counter)),
 		MenuItemID:    menuItemID,
 		Name:          name,
 		Quantity:      quantity,

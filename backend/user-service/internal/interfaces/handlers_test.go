@@ -122,6 +122,14 @@ func (m *MockAuthService) DeactivateUser(ctx context.Context, userID domain.User
 	return args.Error(0)
 }
 
+func (m *MockAuthService) ListUsers(ctx context.Context, filters domain.UserFilters) ([]*domain.UserWithRole, error) {
+	args := m.Called(ctx, filters)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.UserWithRole), args.Error(1)
+}
+
 // Test Suite
 type HandlersTestSuite struct {
 	suite.Suite
