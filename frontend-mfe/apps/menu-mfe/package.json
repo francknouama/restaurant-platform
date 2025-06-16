@@ -5,8 +5,8 @@
   "description": "Restaurant Platform Menu Management Micro-Frontend",
   "type": "module",
   "scripts": {
-    "dev": "webpack serve --mode development",
-    "build": "webpack --mode production",
+    "dev": "webpack serve --config webpack.config.cjs --mode development",
+    "build": "webpack --config webpack.config.cjs --mode production",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",

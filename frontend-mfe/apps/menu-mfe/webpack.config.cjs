@@ -1,6 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const { ModuleFederationPlugin } = require('@module-federation/webpack');
+const { ModuleFederationPlugin } = require('webpack').container;
 const { MFE_PORTS } = require('@restaurant/mfe-tools/dist/utils');
 
 const isDevelopment = process.env.NODE_ENV !== 'production';

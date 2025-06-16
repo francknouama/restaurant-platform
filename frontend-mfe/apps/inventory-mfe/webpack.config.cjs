@@ -1,4 +1,4 @@
-const ModuleFederationPlugin = require('@module-federation/webpack');
+const { ModuleFederationPlugin } = require('webpack').container;
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const path = require('path');
 
@@ -6,7 +6,7 @@ module.exports = {
   mode: 'development',
   entry: './src/index.tsx',
   devServer: {
-    port: 3003,
+    port: 3005,
     hot: true,
     liveReload: true,
     headers: {
@@ -63,19 +63,21 @@ module.exports = {
   },
   plugins: [
     new ModuleFederationPlugin({
-      name: 'kitchenMfe',
+      name: 'inventoryMfe',
       filename: 'remoteEntry.js',
       exposes: {
-        './Kitchen': './src/KitchenApp',
-        './KitchenRoutes': './src/routes',
-        './KitchenComponents': './src/components',
-        './KitchenServices': './src/services',
-        './KitchenStore': './src/store'
+        './Inventory': './src/InventoryApp',
+        './InventoryRoutes': './src/routes',
+        './InventoryComponents': './src/components',
+        './InventoryServices': './src/services',
+        './InventoryStore': './src/store'
       },
       remotes: {
         shellApp: 'shellApp@http://localhost:3000/remoteEntry.js',
         menuMfe: 'menuMfe@http://localhost:3001/remoteEntry.js',
-        ordersMfe: 'ordersMfe@http://localhost:3002/remoteEntry.js'
+        ordersMfe: 'ordersMfe@http://localhost:3002/remoteEntry.js',
+        kitchenMfe: 'kitchenMfe@http://localhost:3003/remoteEntry.js',
+        reservationsMfe: 'reservationsMfe@http://localhost:3004/remoteEntry.js'
       },
       shared: {
         react: {
@@ -103,7 +105,7 @@ module.exports = {
     }),
     new HtmlWebpackPlugin({
       template: './public/index.html',
-      title: 'Kitchen MFE - Restaurant Platform'
+      title: 'Inventory MFE - Restaurant Platform'
     }),
   ],
   optimization: {
